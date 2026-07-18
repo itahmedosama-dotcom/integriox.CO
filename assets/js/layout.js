@@ -96,6 +96,9 @@ const LAYOUT = (function(){
     if(menuToggle) menuToggle.addEventListener('click', ()=> sidebar.classList.toggle('open'));
 
     I18N.apply(shell);
+    UI.mountFooter(shell.querySelector('.main'));
+    UI.mountWhatsapp();
+    document.addEventListener('lang-changed', ()=>{ UI.mountFooter(shell.querySelector('.main')); UI.mountWhatsapp(); });
     return { user, contentEl: shell.querySelector('#pageContent') };
   }
 

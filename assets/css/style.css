@@ -329,3 +329,68 @@ html[dir="rtl"] .main{ margin-right:var(--sidebar-w); }
 .terms-box{ background:var(--sky-50); border:1px solid var(--line); border-radius:var(--radius-sm); padding:16px 18px; font-size:13px; color:var(--ink-soft); max-height:220px; overflow-y:auto; white-space:pre-line; line-height:1.9; }
 
 .signature-pad{ border:1.5px dashed var(--line); border-radius:var(--radius-sm); background:#fff; touch-action:none; cursor:crosshair; }
+
+/* ---------- footer / copyright ---------- */
+.site-footer{
+  padding:16px 26px 20px; text-align:center; font-size:12px; color:var(--ink-mute);
+  border-top:1px solid var(--line); display:flex; flex-wrap:wrap; gap:6px 10px; justify-content:center;
+}
+.site-footer-sep{ opacity:.5; }
+.auth-wrap .site-footer{ border-top:none; margin-top:18px; }
+
+/* ---------- floating WhatsApp widget ---------- */
+.wa-float{
+  position:fixed; bottom:22px; inset-inline-end:22px; z-index:250;
+  display:flex; align-items:center; gap:10px; background:#25D366; color:#fff;
+  padding:12px 18px 12px 14px; border-radius:99px; box-shadow:var(--shadow-lg);
+  font-size:13px; font-weight:700; text-decoration:none; animation:wa-pulse 2.2s infinite;
+}
+html[dir="rtl"] .wa-float{ padding:12px 14px 12px 18px; }
+.wa-float:hover{ transform:translateY(-2px); }
+.wa-float-icon{ display:flex; width:26px; height:26px; }
+@keyframes wa-pulse{
+  0%{ box-shadow:0 0 0 0 rgba(37,211,102,.55), var(--shadow-lg); }
+  70%{ box-shadow:0 0 0 12px rgba(37,211,102,0), var(--shadow-lg); }
+  100%{ box-shadow:0 0 0 0 rgba(37,211,102,0), var(--shadow-lg); }
+}
+@media (max-width:600px){
+  .wa-float .wa-float-label{ display:none; }
+  .wa-float{ padding:12px; }
+}
+
+/* ---------- captcha ---------- */
+.captcha-box{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.captcha-code{
+  flex:1; display:flex; justify-content:center; gap:6px; user-select:none; -webkit-user-select:none;
+  background:var(--sky-50); border:1.5px dashed var(--line); border-radius:var(--radius-sm);
+  padding:10px 12px; font-family:'Inter', monospace; font-weight:800; font-size:19px; letter-spacing:3px;
+}
+.captcha-code span{ display:inline-block; }
+.captcha-refresh{
+  width:40px; height:40px; flex-shrink:0; border-radius:var(--radius-sm); border:1.5px solid var(--line);
+  background:var(--surface); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--ink-soft);
+}
+.captcha-refresh:hover{ color:var(--blue); border-color:var(--blue); }
+
+/* ---------- success confirmation popup ---------- */
+.success-popup-overlay{
+  position:fixed; inset:0; background:rgba(11,37,69,.4); z-index:300;
+  display:flex; align-items:center; justify-content:center; padding:20px; animation:toast-in .18s ease;
+}
+.success-popup-card{
+  background:var(--surface); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
+  padding:32px 28px; text-align:center; max-width:320px; width:100%;
+}
+.success-popup-check{
+  width:60px; height:60px; border-radius:50%; background:var(--success-bg); color:var(--success);
+  display:flex; align-items:center; justify-content:center; margin:0 auto 14px;
+}
+.success-popup-check svg{ width:30px; height:30px; }
+.success-popup-title{ font-weight:800; font-size:16px; margin-bottom:4px; }
+.success-popup-msg{ font-size:13px; color:var(--ink-soft); margin-bottom:18px; }
+
+/* ---------- first-run setup wizard ---------- */
+.setup-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:var(--bg); }
+.setup-box{ width:100%; max-width:480px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); padding:32px; }
+.setup-step{ display:none; }
+.setup-step.active{ display:block; }

@@ -114,6 +114,24 @@ const I18N = (function(){
       required: "مطلوب", details: "التفاصيل", export: "تصدير", filter: "تصفية", loading: "جاري التحميل...",
       confirm_delete: "هل أنت متأكد من الحذف؟", saved_ok: "تم الحفظ بنجاح", deleted_ok: "تم الحذف بنجاح",
       jan:"يناير",feb:"فبراير",mar:"مارس",apr:"أبريل",may:"مايو",jun:"يونيو",jul:"يوليو",aug:"أغسطس",sep:"سبتمبر",oct:"أكتوبر",nov:"نوفمبر",dec:"ديسمبر",
+      // popup / done confirmation
+      done_title: "تم بنجاح", ok: "حسنًا",
+      // captcha
+      captcha_label: "رمز التحقق", captcha_hint: "أدخل الرمز الظاهر في الصورة للتأكد أنك لست برنامجًا آليًا",
+      captcha_refresh: "تحديث الرمز", err_captcha: "رمز التحقق غير صحيح",
+      // first-run setup wizard
+      setup_title: "تفعيل النظام لأول مرة", setup_step_sheet: "ربط جوجل شيت",
+      setup_step_admin: "حساب المدير", setup_sheet_intro: "أدخل بيانات الربط مع جوجل شيت (يمكن تخطي هذه الخطوة وإكمالها لاحقًا من الإعدادات).",
+      setup_admin_intro: "أنشئ حساب مدير النظام الرئيسي للمنصة.",
+      setup_next: "التالي", setup_back: "رجوع", setup_skip: "تخطي هذه الخطوة",
+      setup_finish: "إنهاء التفعيل وتسجيل الدخول", setup_done_msg: "تم تفعيل النظام بنجاح",
+      // footer / whatsapp settings
+      footer_settings: "حقوق الملكية والتواصل", footer_text_label: "نص حقوق الملكية (عربي)",
+      footer_text_en_label: "نص حقوق الملكية (إنجليزي)", footer_hint: "يظهر هذا النص أسفل جميع صفحات المنصة.",
+      whatsapp_settings: "إعدادات واتساب", whatsapp_number_label: "رقم الواتساب",
+      whatsapp_number_hint: "أدخل الرقم بالصيغة الدولية بدون + أو أصفار (مثال: 9665xxxxxxxx).",
+      whatsapp_message_label: "نص الرسالة (عربي)", whatsapp_message_en_label: "نص الرسالة (إنجليزي)",
+      contact_us: "تواصل معنا",
     },
     en: {
       app_name: "Integriox", app_tag: "Integrated Solutions",
@@ -209,6 +227,24 @@ const I18N = (function(){
       required: "Required", details: "Details", export: "Export", filter: "Filter", loading: "Loading...",
       confirm_delete: "Are you sure you want to delete this?", saved_ok: "Saved successfully", deleted_ok: "Deleted successfully",
       jan:"Jan",feb:"Feb",mar:"Mar",apr:"Apr",may:"May",jun:"Jun",jul:"Jul",aug:"Aug",sep:"Sep",oct:"Oct",nov:"Nov",dec:"Dec",
+      // popup / done confirmation
+      done_title: "Done successfully", ok: "OK",
+      // captcha
+      captcha_label: "Verification code", captcha_hint: "Enter the code shown in the image to confirm you're not a bot",
+      captcha_refresh: "Refresh code", err_captcha: "Incorrect verification code",
+      // first-run setup wizard
+      setup_title: "First-time System Activation", setup_step_sheet: "Google Sheet Connection",
+      setup_step_admin: "Admin Account", setup_sheet_intro: "Enter the Google Sheet connection details (you can skip this step and complete it later from Settings).",
+      setup_admin_intro: "Create the main administrator account for the platform.",
+      setup_next: "Next", setup_back: "Back", setup_skip: "Skip this step",
+      setup_finish: "Finish setup & sign in", setup_done_msg: "System activated successfully",
+      // footer / whatsapp settings
+      footer_settings: "Copyright & Contact", footer_text_label: "Copyright text (Arabic)",
+      footer_text_en_label: "Copyright text (English)", footer_hint: "This text appears at the bottom of every page in the platform.",
+      whatsapp_settings: "WhatsApp settings", whatsapp_number_label: "WhatsApp number",
+      whatsapp_number_hint: "Enter the number in international format without + or leading zeros (e.g. 9665xxxxxxxx).",
+      whatsapp_message_label: "Message text (Arabic)", whatsapp_message_en_label: "Message text (English)",
+      contact_us: "Contact us",
     }
   };
 

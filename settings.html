@@ -33,6 +33,7 @@ if(ctx){
         <button data-tab="approvals" data-i18n="pending_approvals"></button>
         <button data-tab="terms" data-i18n="terms_settings"></button>
         <button data-tab="integration" data-i18n="integration_settings"></button>
+        <button data-tab="footer" data-i18n="footer_settings"></button>
         <button data-tab="log" data-i18n="settings_tab_log"></button>
       </div>
 
@@ -119,6 +120,27 @@ if(ctx){
         </div>
       </div>
 
+      <div class="tab-panel hidden" data-panel="footer">
+        <div class="card" style="max-width:640px; margin-bottom:20px;">
+          <div class="card-header"><h3 class="card-title" data-i18n="footer_settings"></h3></div>
+          <p class="hint" data-i18n="footer_hint" style="margin-bottom:12px;"></p>
+          <div class="field"><label data-i18n="footer_text_label"></label><textarea id="sFooterAr" style="min-height:70px;">${settings.footerText||''}</textarea></div>
+          <div class="field"><label data-i18n="footer_text_en_label"></label><textarea id="sFooterEn" style="min-height:70px;">${settings.footerTextEn||''}</textarea></div>
+          <button class="btn btn-primary" id="saveFooter" data-i18n="save_changes"></button>
+        </div>
+        <div class="card" style="max-width:640px;">
+          <div class="card-header"><h3 class="card-title" data-i18n="whatsapp_settings"></h3></div>
+          <div class="field">
+            <label data-i18n="whatsapp_number_label"></label>
+            <input type="text" id="sWaNumber" placeholder="9665xxxxxxxx" value="${settings.whatsappNumber||''}">
+            <p class="hint" data-i18n="whatsapp_number_hint" style="margin-top:6px;"></p>
+          </div>
+          <div class="field"><label data-i18n="whatsapp_message_label"></label><textarea id="sWaMsgAr" style="min-height:70px;">${settings.whatsappMessage||''}</textarea></div>
+          <div class="field"><label data-i18n="whatsapp_message_en_label"></label><textarea id="sWaMsgEn" style="min-height:70px;">${settings.whatsappMessageEn||''}</textarea></div>
+          <button class="btn btn-primary" id="saveWhatsapp" data-i18n="save_changes"></button>
+        </div>
+      </div>
+
       <div class="tab-panel hidden" data-panel="log">
         <div class="card">
           <div class="card-header"><h3 class="card-title" data-i18n="activity_log"></h3></div>
@@ -144,10 +166,28 @@ if(ctx){
         companyEmail: contentEl.querySelector('#sEmail').value.trim(),
         companyAddress: contentEl.querySelector('#sAddress').value.trim(),
       });
+      UI.mountFooter(document.querySelector('.main'));
       UI.toast(I18N.t('saved_ok'), 'success');
     });
     contentEl.querySelector('#saveTerms').addEventListener('click', ()=>{
       DB.saveSettings({ terms: contentEl.querySelector('#sTerms').value });
+      UI.toast(I18N.t('saved_ok'), 'success');
+    });
+    contentEl.querySelector('#saveFooter').addEventListener('click', ()=>{
+      DB.saveSettings({
+        footerText: contentEl.querySelector('#sFooterAr').value,
+        footerTextEn: contentEl.querySelector('#sFooterEn').value,
+      });
+      UI.mountFooter(document.querySelector('.main'));
+      UI.toast(I18N.t('saved_ok'), 'success');
+    });
+    contentEl.querySelector('#saveWhatsapp').addEventListener('click', ()=>{
+      DB.saveSettings({
+        whatsappNumber: contentEl.querySelector('#sWaNumber').value.trim(),
+        whatsappMessage: contentEl.querySelector('#sWaMsgAr').value,
+        whatsappMessageEn: contentEl.querySelector('#sWaMsgEn').value,
+      });
+      UI.mountWhatsapp();
       UI.toast(I18N.t('saved_ok'), 'success');
     });
     const apiKeyInput = contentEl.querySelector('#sApiKey');

@@ -7,7 +7,7 @@
    ========================================================================== */
 const DB = (function(){
 
-  const KEY = 'integriox_db_v1';
+  const KEY = 'integriox_db_v2';
   // 'local' -> localStorage only. 'remote' -> also pushes to Google Sheet (fire & forget).
   let MODE = 'local';
 
@@ -15,16 +15,25 @@ const DB = (function(){
   function todayISO(){ return new Date().toISOString().slice(0,10); }
 
   function seed(){
-    const now = todayISO();
     return {
+      // setupDone becomes true once the first-run wizard (Sheet URL + API key
+      // + admin account) has been completed — see index.html.
       settings: {
+        setupDone: false,
         companyName: 'Integriox',
-        companyPhone: '+966 50 000 0000',
+        companyPhone: '053-939',
         companyEmail: 'info@integriox.com',
-        companyAddress: 'الرياض، المملكة العربية السعودية',
+        companyAddress: '',
         sheetUrl: '',
         driveFolderId: '',
         apiKeyEnc: '',
+        // Footer / copyright notice — editable from Settings → Footer & WhatsApp.
+        footerText: '© جميع حقوق الملكية الفكرية لهذا التطبيق محفوظة لدى الشركة المطوّرة — integriox CO 2026',
+        footerTextEn: '© All intellectual property rights of this application are reserved to the developing company — integriox CO 2026',
+        // WhatsApp floating contact widget — editable from Settings.
+        whatsappNumber: '',
+        whatsappMessage: 'مرحباً، أحتاج مساعدة بخصوص منصة Integriox',
+        whatsappMessageEn: 'Hello, I need help regarding the Integriox platform',
         terms:
 `1. يلتزم الطرف الأول (الشركة) بتقديم خدمات الصيانة المتفق عليها وفق الجدول الزمني المحدد في العقد.
 2. يلتزم الطرف الثاني (العميل) بتوفير الوصول اللازم للموقع في مواعيد الزيارات المتفق عليها.
@@ -34,51 +43,14 @@ const DB = (function(){
 6. يتم تجديد العقد تلقائيًا لمدة مماثلة ما لم يُخطر أحد الطرفين الآخر برغبته في عدم التجديد قبل 15 يومًا من تاريخ الانتهاء.
 7. تخضع بنود هذا العقد لأنظمة المملكة العربية السعودية النافذة.`
       },
-      users: [
-        { id:'u_admin', name:'مدير النظام', email:'admin@integriox.com', password:'admin123', phone:'0500000001', role:'admin', status:'approved' },
-        { id:'u_client1', name:'أحمد الشمري', email:'client@integriox.com', password:'client123', phone:'0501112233', role:'client', status:'approved', clientId:'c_1' },
-        { id:'u_tech1', name:'محمد العتيبي', email:'tech@integriox.com', password:'tech123', phone:'0502223344', role:'technician', status:'approved', techId:'t_1' },
-        { id:'u_pending1', name:'سارة القحطاني', email:'sara@example.com', password:'123456', phone:'0509998877', role:'client', status:'pending' },
-      ],
-      clients: [
-        { id:'c_1', name:'أحمد الشمري', nameAr:'أحمد الشمري', nameEn:'Ahmed Al-Shamri', country:'السعودية', phone:'0501112233', email:'client@integriox.com', address:'الرياض - حي النرجس', createdAt: now },
-        { id:'c_2', name:'شركة النخبة التجارية', nameAr:'شركة النخبة التجارية', nameEn:'Elite Corp Trading', country:'السعودية', phone:'0555556677', email:'info@elitecorp.sa', address:'جدة - حي الروضة', createdAt: now },
-        { id:'c_3', name:'مصنع الأمل للصناعات', nameAr:'مصنع الأمل للصناعات', nameEn:'Al-Amal Industries', country:'السعودية', phone:'0533334455', email:'contact@amal-factory.sa', address:'الدمام - المنطقة الصناعية', createdAt: now },
-      ],
-      technicians: [
-        { id:'t_1', name:'محمد العتيبي', phone:'0502223344', email:'tech@integriox.com', specialty:'تكييف وتبريد', nationality:'السعودية', rating:4.8 },
-        { id:'t_2', name:'خالد الدوسري', phone:'0544445566', email:'khaled@integriox.com', specialty:'كهرباء وأنظمة', nationality:'السعودية', rating:4.6 },
-        { id:'t_3', name:'عبدالله المطيري', phone:'0577778899', email:'abdullah@integriox.com', specialty:'شبكات وحاسب آلي', nationality:'مصر', rating:4.9 },
-      ],
-      contracts: [
-        { id:'CT-1001', clientId:'c_1', amount:24000, durationMonths:12, periodType:'fixed', contractType:'all', startDate:'2026-01-01', endDate:'2026-12-31', visitsTotal:12, visitsUsed:5, paymentTerms:'deferred', status:'active', signature:null, createdAt:now },
-        { id:'CT-1002', clientId:'c_2', amount:60000, durationMonths:12, periodType:'open', contractType:'onsite', startDate:'2025-09-01', endDate:'', visitsTotal:24, visitsUsed:9, paymentTerms:'upfront', status:'active', signature:null, createdAt:now },
-        { id:'CT-1003', clientId:'c_3', amount:18000, durationMonths:6, periodType:'fixed', contractType:'visits', startDate:'2026-02-01', endDate:'2026-07-31', visitsTotal:6, visitsUsed:6, paymentTerms:'deferred', status:'closed', signature:null, createdAt:now },
-        { id:'CT-1004', clientId:'c_2', amount:15000, durationMonths:12, periodType:'fixed', contractType:'remote', startDate:'2026-03-01', endDate:'2027-02-28', visitsTotal:12, visitsUsed:1, paymentTerms:'upfront', status:'renewal', signature:null, createdAt:now },
-      ],
-      visits: [
-        { id:'V-5001', contractId:'CT-1001', clientId:'c_1', techId:'t_1', date:'2026-07-20', time:'10:00', type:'periodic', status:'scheduled', description:'صيانة دورية شهرية لأجهزة التكييف' },
-        { id:'V-5002', contractId:'CT-1002', clientId:'c_2', techId:'t_2', date:'2026-07-15', time:'13:00', type:'fault', status:'ongoing', description:'عطل في اللوحة الكهربائية الرئيسية' },
-        { id:'V-5003', contractId:'CT-1001', clientId:'c_1', techId:'t_1', date:'2026-06-18', time:'09:30', type:'periodic', status:'done', description:'صيانة دورية' },
-        { id:'V-5004', contractId:'CT-1003', clientId:'c_3', techId:'t_3', date:'2026-07-10', time:'11:00', type:'urgent', status:'done', description:'توقف كامل في نظام الشبكة' },
-        { id:'V-5005', contractId:'CT-1004', clientId:'c_2', techId:'t_2', date:'2026-07-22', time:'15:00', type:'periodic', status:'scheduled', description:'فحص أنظمة الدعم عن بعد' },
-        { id:'V-5006', contractId:'CT-1002', clientId:'c_2', techId:null, date:'2026-07-25', time:'10:00', type:'fault', status:'scheduled', description:'بلاغ عطل في وحدة التبريد الثانية' },
-      ],
-      payments: [
-        { id:'P-9001', contractId:'CT-1001', clientId:'c_1', amount:2000, method:'bank', date:'2026-06-01', status:'confirmed', proofName:'receipt_june.pdf' },
-        { id:'P-9002', contractId:'CT-1002', clientId:'c_2', amount:30000, method:'bank', date:'2025-09-05', status:'confirmed', proofName:'transfer_sept.jpg' },
-        { id:'P-9003', contractId:'CT-1001', clientId:'c_1', amount:2000, method:'cash', date:'2026-07-01', status:'review', proofName:'cash_receipt_july.jpg' },
-        { id:'P-9004', contractId:'CT-1004', clientId:'c_2', amount:15000, method:'other', date:'2026-03-02', status:'confirmed', proofName:'stc_pay.png' },
-      ],
-      invoices: [
-        { id:'INV-7001', contractId:'CT-1001', clientId:'c_1', amount:2000, date:now, status:'paid', description:'دفعة شهرية - يونيو', createdAt: now },
-        { id:'INV-7002', contractId:'CT-1002', clientId:'c_2', amount:30000, date:now, status:'paid', description:'دفعة مقدمة', createdAt: now },
-        { id:'INV-7003', contractId:'CT-1001', clientId:'c_1', amount:2000, date:now, status:'unpaid', description:'دفعة شهرية - يوليو', createdAt: now },
-      ],
-      activity: [
-        { id:'a1', text_ar:'تم تسجيل دفعة جديدة للعقد CT-1001', text_en:'New payment recorded for contract CT-1001', at: now },
-        { id:'a2', text_ar:'تمت جدولة زيارة جديدة للعميل أحمد الشمري', text_en:'New visit scheduled for client Ahmed Al-Shamri', at: now },
-      ]
+      users: [],
+      clients: [],
+      technicians: [],
+      contracts: [],
+      visits: [],
+      payments: [],
+      invoices: [],
+      activity: []
     };
   }
 
