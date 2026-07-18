@@ -117,23 +117,101 @@ const DB = (function(){
 
   function resetDemo(){ localStorage.removeItem(KEY); cache = null; return load(); }
 
-  /* ---------- remote sync (fire & forget) ----------
+  /* ---------- remote sync ----------
      Every insert/update/delete pushes ONLY the row that changed (instead of
      re-writing the whole sheet on every keystroke-triggered save), which
-     keeps the UI fast even with a real Google Sheet attached. */
-  function pushRemote(body){
+     keeps the UI fast even with a real Google Sheet attached.
+
+     We first try a normal (readable) fetch so failures are no longer
+     silent — Apps Script Web Apps deployed with "Who has access: Anyone"
+     do return a readable cross-origin response for both GET and POST. If
+     the browser still blocks reading it for any reason, we fall back to a
+     best-effort no-cors resend (fire-and-forget, like before) so the write
+     is still attempted even though we can't confirm it. */
+  function pushRemote(body, opts){
     const data = load();
     if(MODE !== 'remote' || !data.settings.sheetUrl) return;
-    try{
-      fetch(data.settings.sheetUrl, {
-        method:'POST', mode:'no-cors',
-        body: JSON.stringify(Object.assign({ apiKey: decodeSecret(data.settings.apiKeyEnc) }, body))
-      }).catch(()=>{});
-    }catch(e){ /* offline / blocked — local copy already saved */ }
+    const payload = JSON.stringify(Object.assign({ apiKey: decodeSecret(data.settings.apiKeyEnc) }, body));
+    const url = data.settings.sheetUrl;
+    fetch(url, { method:'POST', body: payload })
+      .then(res=>res.json())
+      .then(json=>{
+        if(!json || json.error){
+          notifySyncIssue(json && json.error);
+        } else if(opts && opts.onSuccess){
+          opts.onSuccess(json);
+        }
+      })
+      .catch(()=>{
+        // couldn't read the response (older/blocked deployment) — still
+        // attempt a fire-and-forget write so data isn't lost if the sheet
+        // side actually works, just silently.
+        try{
+          fetch(url, { method:'POST', mode:'no-cors', body: payload }).catch(()=>{});
+        }catch(e){ /* fully offline */ }
+      });
+  }
+  let lastSyncWarningAt = 0;
+  function notifySyncIssue(errText){
+    // throttle to avoid spamming toasts if many rows fail in a row
+    const now = Date.now();
+    if(now - lastSyncWarningAt < 4000) return;
+    lastSyncWarningAt = now;
+    if(window.UI && UI.toast){
+      UI.toast((window.I18N ? I18N.t('sync_failed_toast') : 'Sync to Google Sheet failed') + (errText ? ' — ' + errText : ''), 'error');
+    }
+  }
+  // Pulls the full dataset from the Sheet and makes it the local copy —
+  // used by the explicit "Load from Sheet" action in Settings, for anyone
+  // who wants the Sheet to be the verified source of truth on this device.
+  // Sheet cells only hold text, so array/object fields (branches, messages,
+  // photos, remoteAccess...) come back as JSON strings — turn them back
+  // into real objects/arrays before using the data in the app.
+  function hydrateRow(row){
+    const out = {};
+    Object.keys(row).forEach(k=>{
+      const v = row[k];
+      if(typeof v === 'string' && v.length>1 && (v[0]==='{' || v[0]==='[')){
+        try{ out[k] = JSON.parse(v); return; }catch(e){ /* not actually JSON, keep as-is */ }
+      }
+      out[k] = v;
+    });
+    return out;
+  }
+  function pullFromSheet(){
+    const data = load();
+    if(!data.settings.sheetUrl) return Promise.reject(new Error('no sheet url'));
+    return fetch(data.settings.sheetUrl + (data.settings.sheetUrl.includes('?')?'&':'?') + 'action=getAll')
+      .then(res=>res.json())
+      .then(remote=>{
+        if(!remote || remote.error) throw new Error((remote && remote.error) || 'invalid response');
+        const merged = Object.assign({}, data, data);
+        Object.keys(remote).forEach(col=>{
+          if(col==='settings') return;
+          merged[col] = (remote[col]||[]).map(hydrateRow);
+        });
+        merged.settings = Object.assign({}, data.settings, remote.settings||{});
+        save(merged);
+        return merged;
+      });
   }
   function syncFull(){
     const data = load();
     pushRemote({ action:'syncAll', payload:data });
+  }
+  // Promise-based full push, used by the explicit "Sync Now" button in
+  // Settings so the admin gets a definitive success/failure result instead
+  // of the throttled ambient notification used for background auto-syncs.
+  function syncNow(){
+    const data = load();
+    if(!data.settings.sheetUrl) return Promise.reject(new Error('no sheet url configured'));
+    const payload = JSON.stringify(Object.assign({ apiKey: decodeSecret(data.settings.apiKeyEnc) }, { action:'syncAll', payload:data }));
+    return fetch(data.settings.sheetUrl, { method:'POST', body: payload })
+      .then(res=>res.json())
+      .then(json=>{
+        if(!json || json.error) throw new Error((json && json.error) || 'sync failed');
+        return json;
+      });
   }
 
   // ---------- generic collection helpers ----------
@@ -196,7 +274,7 @@ const DB = (function(){
     uid, todayISO, load, save, resetDemo,
     all, get, insert, update, remove,
     getSettings, saveSettings, logActivity,
-    encodeSecret, decodeSecret, syncFull, shippedConfig,
+    encodeSecret, decodeSecret, syncFull, syncNow, pullFromSheet, shippedConfig,
     setMode:(m)=>MODE=m, getMode:()=>MODE,
   };
 })();
