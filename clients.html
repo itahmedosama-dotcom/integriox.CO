@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Clients</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+const ctx = LAYOUT.render('clients');
+if(ctx){
+  const { contentEl } = ctx;
+
+  function render(){
+    const clients = DB.all('clients');
+    const contracts = DB.all('contracts');
+    contentEl.innerHTML = `
+      <div class="filters-bar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="searchInput" data-i18n-ph="search">
+        </div>
+        <button class="btn btn-primary" id="addBtn" data-i18n="add_client"></button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="client_name"></th><th data-i18n="client_phone"></th><th data-i18n="client_email"></th>
+              <th data-i18n="client_address"></th><th data-i18n="client_contracts_count"></th><th data-i18n="actions"></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state hidden">
+          <div data-i18n="no_data"></div>
+        </div>
+      </div>
+    `;
+    I18N.apply(contentEl);
+    const rowsEl = contentEl.querySelector('#rows');
+
+    function draw(filter){
+      const f = (filter||'').toLowerCase();
+      const list = clients.filter(c=> !f || c.name.toLowerCase().includes(f) || c.phone.includes(f) || (c.email||'').toLowerCase().includes(f));
+      contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
+      rowsEl.innerHTML = list.map(c=>{
+        const count = contracts.filter(k=>k.clientId===c.id).length;
+        return `<tr>
+          <td class="cell-name"><div class="avatar">${UI.initials(c.name)}</div>${c.name}</td>
+          <td>${c.phone||'—'}</td>
+          <td>${c.email||'—'}</td>
+          <td>${c.address||'—'}</td>
+          <td><span class="badge badge-info">${count}</span></td>
+          <td class="row-actions">
+            <button class="btn btn-sm btn-outline" data-edit="${c.id}" data-i18n="edit"></button>
+            <button class="btn btn-sm btn-danger" data-del="${c.id}" data-i18n="delete"></button>
+          </td>
+        </tr>`;
+      }).join('');
+      I18N.apply(rowsEl);
+      wireRowActions();
+    }
+
+    function wireRowActions(){
+      rowsEl.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openForm(DB.get('clients', b.dataset.edit))));
+      rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{
+          DB.remove('clients', b.dataset.del);
+          UI.toast(I18N.t('deleted_ok'), 'success');
+          render();
+        });
+      }));
+    }
+
+    contentEl.querySelector('#searchInput').addEventListener('input', (e)=>draw(e.target.value));
+    contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm(null));
+    draw('');
+  }
+
+  function openForm(client){
+    const editing = !!client;
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_client'}"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="field"><label data-i18n="client_name"></label><input type="text" id="fName" value="${client?client.name:''}"></div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="client_phone"></label><input type="tel" id="fPhone" value="${client?client.phone:''}"></div>
+          <div class="field"><label data-i18n="client_email"></label><input type="email" id="fEmail" value="${client?client.email:''}"></div>
+        </div>
+        <div class="field"><label data-i18n="client_address"></label><input type="text" id="fAddress" value="${client?client.address:''}"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
+        <button class="btn btn-primary" id="mSave" data-i18n="save"></button>
+      </div>
+    `);
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      const data = {
+        name: overlay.querySelector('#fName').value.trim(),
+        phone: overlay.querySelector('#fPhone').value.trim(),
+        email: overlay.querySelector('#fEmail').value.trim(),
+        address: overlay.querySelector('#fAddress').value.trim(),
+      };
+      if(!data.name){ UI.toast(I18N.t('err_required'), 'error'); return; }
+      if(editing) DB.update('clients', client.id, data);
+      else DB.insert('clients', { ...data, createdAt: DB.todayISO() });
+      UI.closeModal();
+      UI.toast(I18N.t('saved_ok'), 'success');
+      render();
+    });
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>

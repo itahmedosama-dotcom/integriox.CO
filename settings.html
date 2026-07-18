@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Settings</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+const ctx = LAYOUT.render('settings');
+if(ctx){
+  const { contentEl } = ctx;
+
+  function render(){
+    const settings = DB.getSettings();
+    const pending = DB.all('users').filter(u=>u.status==='pending');
+
+    contentEl.innerHTML = `
+      <div class="tabs">
+        <button class="active" data-tab="general" data-i18n="general_settings"></button>
+        <button data-tab="terms" data-i18n="terms_settings"></button>
+        <button data-tab="integration" data-i18n="integration_settings"></button>
+        <button data-tab="approvals" data-i18n="pending_approvals"></button>
+      </div>
+
+      <div class="tab-panel" data-panel="general">
+        <div class="card" style="max-width:640px;">
+          <div class="card-header"><h3 class="card-title" data-i18n="company_info"></h3></div>
+          <div class="field"><label data-i18n="company_name"></label><input type="text" id="sName" value="${settings.companyName}"></div>
+          <div class="field-row">
+            <div class="field"><label data-i18n="phone"></label><input type="tel" id="sPhone" value="${settings.companyPhone}"></div>
+            <div class="field"><label data-i18n="email"></label><input type="email" id="sEmail" value="${settings.companyEmail}"></div>
+          </div>
+          <div class="field"><label data-i18n="client_address"></label><input type="text" id="sAddress" value="${settings.companyAddress}"></div>
+          <button class="btn btn-primary" id="saveGeneral" data-i18n="save_changes"></button>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="terms">
+        <div class="card" style="max-width:720px;">
+          <div class="card-header"><h3 class="card-title" data-i18n="terms_settings"></h3></div>
+          <p class="hint" data-i18n="terms_hint" style="margin-bottom:12px;"></p>
+          <textarea id="sTerms" style="min-height:260px;">${settings.terms}</textarea>
+          <button class="btn btn-primary" id="saveTerms" style="margin-top:14px;" data-i18n="save_changes"></button>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="integration">
+        <div class="card" style="max-width:640px;">
+          <div class="card-header"><h3 class="card-title" data-i18n="integration_settings"></h3></div>
+          <p class="hint" data-i18n="sheet_hint" style="margin-bottom:12px;"></p>
+          <div class="field"><label data-i18n="sheet_url"></label><input type="text" id="sSheetUrl" placeholder="https://script.google.com/macros/s/XXXXX/exec" value="${settings.sheetUrl||''}"></div>
+          <button class="btn btn-primary" id="saveSheet" data-i18n="save_changes"></button>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="approvals">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title" data-i18n="pending_approvals"></h3></div>
+          <div id="approvalsBody"></div>
+        </div>
+      </div>
+    `;
+    I18N.apply(contentEl);
+
+    contentEl.querySelectorAll('.tabs button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        contentEl.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        contentEl.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));
+        contentEl.querySelector(`[data-panel="${btn.dataset.tab}"]`).classList.remove('hidden');
+      });
+    });
+
+    contentEl.querySelector('#saveGeneral').addEventListener('click', ()=>{
+      DB.saveSettings({
+        companyName: contentEl.querySelector('#sName').value.trim(),
+        companyPhone: contentEl.querySelector('#sPhone').value.trim(),
+        companyEmail: contentEl.querySelector('#sEmail').value.trim(),
+        companyAddress: contentEl.querySelector('#sAddress').value.trim(),
+      });
+      UI.toast(I18N.t('saved_ok'), 'success');
+    });
+    contentEl.querySelector('#saveTerms').addEventListener('click', ()=>{
+      DB.saveSettings({ terms: contentEl.querySelector('#sTerms').value });
+      UI.toast(I18N.t('saved_ok'), 'success');
+    });
+    contentEl.querySelector('#saveSheet').addEventListener('click', ()=>{
+      DB.saveSettings({ sheetUrl: contentEl.querySelector('#sSheetUrl').value.trim() });
+      DB.setMode(contentEl.querySelector('#sSheetUrl').value.trim() ? 'remote' : 'local');
+      UI.toast(I18N.t('saved_ok'), 'success');
+    });
+
+    function renderApprovals(){
+      const body = contentEl.querySelector('#approvalsBody');
+      const list = DB.all('users').filter(u=>u.status==='pending');
+      if(!list.length){ body.innerHTML = `<div class="empty-state">${I18N.t('no_pending')}</div>`; return; }
+      body.innerHTML = `
+        <div class="table-wrap"><table>
+          <thead><tr><th data-i18n="full_name"></th><th data-i18n="email"></th><th data-i18n="phone"></th><th data-i18n="account_type"></th><th data-i18n="actions"></th></tr></thead>
+          <tbody>
+          ${list.map(u=>`<tr>
+            <td class="cell-name"><div class="avatar">${UI.initials(u.name)}</div>${u.name}</td>
+            <td>${u.email}</td><td>${u.phone}</td><td>${AUTH.roleLabel(u.role)}</td>
+            <td class="row-actions">
+              <button class="btn btn-sm btn-accent" data-approve="${u.id}" data-i18n="approve"></button>
+              <button class="btn btn-sm btn-danger" data-reject="${u.id}" data-i18n="reject"></button>
+            </td>
+          </tr>`).join('')}
+          </tbody>
+        </table></div>`;
+      I18N.apply(body);
+      body.querySelectorAll('[data-approve]').forEach(b=>b.addEventListener('click', ()=>{
+        DB.update('users', b.dataset.approve, { status:'approved' }); UI.toast(I18N.t('saved_ok'),'success'); renderApprovals();
+      }));
+      body.querySelectorAll('[data-reject]').forEach(b=>b.addEventListener('click', ()=>{
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{ DB.remove('users', b.dataset.reject); UI.toast(I18N.t('deleted_ok'),'success'); renderApprovals(); });
+      }));
+    }
+    renderApprovals();
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>

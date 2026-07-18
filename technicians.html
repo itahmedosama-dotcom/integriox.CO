@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Technicians</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+const ctx = LAYOUT.render('technicians');
+if(ctx){
+  const { contentEl } = ctx;
+
+  function render(){
+    const techs = DB.all('technicians');
+    const visits = DB.all('visits');
+    contentEl.innerHTML = `
+      <div class="filters-bar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="searchInput" data-i18n-ph="search">
+        </div>
+        <button class="btn btn-primary" id="addBtn" data-i18n="add_technician"></button>
+      </div>
+      <div class="grid grid-3" id="cards"></div>
+      <div id="emptyState" class="empty-state hidden"><div data-i18n="no_data"></div></div>
+    `;
+    I18N.apply(contentEl);
+    const cardsEl = contentEl.querySelector('#cards');
+
+    function draw(filter){
+      const f = (filter||'').toLowerCase();
+      const list = techs.filter(t=> !f || t.name.toLowerCase().includes(f) || (t.specialty||'').toLowerCase().includes(f));
+      contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
+      cardsEl.innerHTML = list.map(t=>{
+        const count = visits.filter(v=>v.techId===t.id).length;
+        return `<div class="card">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+            <div class="avatar" style="width:46px;height:46px;font-size:15px;">${UI.initials(t.name)}</div>
+            <div>
+              <div style="font-weight:700;">${t.name}</div>
+              <div class="text-muted" style="font-size:12.5px;">${t.specialty||'—'}</div>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;">
+            <span class="text-muted" data-i18n="phone"></span><span>${t.phone||'—'}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;">
+            <span class="text-muted" data-i18n="tech_visits_count"></span><span class="badge badge-info">${count}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:14px;">
+            <span class="text-muted" data-i18n="tech_rating"></span><span>⭐ ${t.rating||'—'}</span>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-sm btn-outline w-full" data-edit="${t.id}" data-i18n="edit"></button>
+            <button class="btn btn-sm btn-danger" data-del="${t.id}" data-i18n="delete"></button>
+          </div>
+        </div>`;
+      }).join('');
+      I18N.apply(cardsEl);
+      wireActions();
+    }
+    function wireActions(){
+      cardsEl.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openForm(DB.get('technicians', b.dataset.edit))));
+      cardsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{ DB.remove('technicians', b.dataset.del); UI.toast(I18N.t('deleted_ok'),'success'); render(); });
+      }));
+    }
+    contentEl.querySelector('#searchInput').addEventListener('input', e=>draw(e.target.value));
+    contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm(null));
+    draw('');
+  }
+
+  function openForm(t){
+    const editing = !!t;
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_technician'}"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="field"><label data-i18n="tech_name"></label><input type="text" id="fName" value="${t?t.name:''}"></div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="phone"></label><input type="tel" id="fPhone" value="${t?t.phone:''}"></div>
+          <div class="field"><label data-i18n="email"></label><input type="email" id="fEmail" value="${t?t.email:''}"></div>
+        </div>
+        <div class="field"><label data-i18n="tech_specialty"></label><input type="text" id="fSpec" value="${t?t.specialty:''}"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
+        <button class="btn btn-primary" id="mSave" data-i18n="save"></button>
+      </div>
+    `);
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      const data = {
+        name: overlay.querySelector('#fName').value.trim(),
+        phone: overlay.querySelector('#fPhone').value.trim(),
+        email: overlay.querySelector('#fEmail').value.trim(),
+        specialty: overlay.querySelector('#fSpec').value.trim(),
+      };
+      if(!data.name){ UI.toast(I18N.t('err_required'), 'error'); return; }
+      if(editing) DB.update('technicians', t.id, data);
+      else DB.insert('technicians', { ...data, rating:0 });
+      UI.closeModal(); UI.toast(I18N.t('saved_ok'),'success'); render();
+    });
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>

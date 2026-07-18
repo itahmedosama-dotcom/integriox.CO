@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div class="auth-wrap">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <img src="assets/images/logo.png" alt="Integriox">
+      <div class="name" data-i18n="app_name"></div>
+      <div class="tag" data-i18n="app_tag"></div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="active" data-tab="login" data-i18n="tab_login"></button>
+      <button data-tab="register" data-i18n="tab_register"></button>
+    </div>
+
+    <div id="formMsg" class="form-msg"></div>
+
+    <!-- LOGIN FORM -->
+    <form id="loginForm">
+      <div class="field">
+        <label data-i18n="email"></label>
+        <input type="email" id="loginEmail" required>
+      </div>
+      <div class="field">
+        <label data-i18n="password"></label>
+        <input type="password" id="loginPassword" required>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit" data-i18n="btn_login"></button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="registerForm" class="hidden">
+      <div class="field">
+        <label data-i18n="full_name"></label>
+        <input type="text" id="regName" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label data-i18n="email"></label>
+          <input type="email" id="regEmail" required>
+        </div>
+        <div class="field">
+          <label data-i18n="phone"></label>
+          <input type="tel" id="regPhone" required>
+        </div>
+      </div>
+      <div class="field">
+        <label data-i18n="account_type"></label>
+        <div class="radio-group">
+          <label class="radio-card active">
+            <input type="radio" name="regRole" value="client" checked>
+            <span data-i18n="role_client"></span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="regRole" value="technician">
+            <span data-i18n="role_technician"></span>
+          </label>
+        </div>
+      </div>
+      <div class="field">
+        <label data-i18n="company_name"></label>
+        <input type="text" id="regCompany">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label data-i18n="password"></label>
+          <input type="password" id="regPassword" required>
+        </div>
+        <div class="field">
+          <label data-i18n="confirm_password"></label>
+          <input type="password" id="regPassword2" required>
+        </div>
+      </div>
+      <p class="hint" data-i18n="register_note" style="margin-bottom:14px;"></p>
+      <button class="btn btn-primary btn-block" type="submit" data-i18n="btn_register"></button>
+    </form>
+
+    <div class="auth-foot">
+      <span data-i18n="demo_accounts"></span>:
+      admin@integriox.com / admin123 &nbsp;·&nbsp;
+      client@integriox.com / client123 &nbsp;·&nbsp;
+      tech@integriox.com / tech123
+    </div>
+  </div>
+</div>
+
+<div style="position:fixed; top:16px; inset-inline-end:16px;">
+  <div class="lang-switch" style="background:#fff;">
+    <button data-lang="ar">AR</button>
+    <button data-lang="en">EN</button>
+  </div>
+</div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  // if already logged in, go straight to dashboard
+  if(AUTH.currentUser()) window.location.href = 'dashboard.html';
+
+  I18N.apply();
+  const langBtns = document.querySelectorAll('.lang-switch button');
+  function syncLang(){ langBtns.forEach(b=>b.classList.toggle('active', b.dataset.lang===I18N.getLang())); }
+  syncLang();
+  langBtns.forEach(b=>b.addEventListener('click', ()=>{ I18N.setLang(b.dataset.lang); syncLang(); }));
+
+  // tabs
+  const tabs = document.querySelectorAll('.auth-tabs button');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const msg = document.getElementById('formMsg');
+  function showMsg(text, type){ msg.textContent = text; msg.className = 'form-msg show ' + type; }
+  function clearMsg(){ msg.className = 'form-msg'; }
+
+  tabs.forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      tabs.forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      clearMsg();
+      if(tab.dataset.tab === 'login'){ loginForm.classList.remove('hidden'); registerForm.classList.add('hidden'); }
+      else { registerForm.classList.remove('hidden'); loginForm.classList.add('hidden'); }
+    });
+  });
+
+  // radio cards
+  document.querySelectorAll('.radio-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const group = card.closest('.radio-group');
+      group.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
+      card.classList.add('active');
+      card.querySelector('input').checked = true;
+    });
+  });
+
+  loginForm.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    clearMsg();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const res = AUTH.login(email, password);
+    if(!res.ok){ showMsg(I18N.t(res.error), 'error'); return; }
+    window.location.href = 'dashboard.html';
+  });
+
+  registerForm.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    clearMsg();
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const phone = document.getElementById('regPhone').value.trim();
+    const company = document.getElementById('regCompany').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const password2 = document.getElementById('regPassword2').value;
+    const role = document.querySelector('input[name=regRole]:checked').value;
+
+    if(!name || !email || !phone || !password){ showMsg(I18N.t('err_required'), 'error'); return; }
+    if(password !== password2){ showMsg(I18N.t('err_pass_match'), 'error'); return; }
+
+    const res = AUTH.register({ name, email, phone, company, password, role });
+    if(!res.ok){ showMsg(I18N.t(res.error), 'error'); return; }
+    showMsg(I18N.t('success_register'), 'success');
+    registerForm.reset();
+    setTimeout(()=>{ tabs[0].click(); }, 1400);
+  });
+</script>
+</body>
+</html>
