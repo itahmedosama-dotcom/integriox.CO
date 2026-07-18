@@ -145,7 +145,7 @@ const UI = (function(){
     function gen(){
       code = Array.from({length:5}, ()=>chars[Math.floor(Math.random()*chars.length)]).join('');
       container.innerHTML = `
-        <div class="captcha-code" aria-hidden="true">
+        <div class="captcha-code" dir="ltr" aria-hidden="true">
           ${code.split('').map((c,i)=>`<span style="transform:rotate(${(i%2?1:-1)*(4+Math.random()*6)|0}deg);color:hsl(${205+(i*13)%40},55%,${28+ (i%3)*8}%)">${c}</span>`).join('')}
         </div>
         <button type="button" class="captcha-copy" title="${I18N.t('captcha_copy')}">
@@ -161,6 +161,7 @@ const UI = (function(){
       });
     }
     gen();
+    if(inputEl){ inputEl.setAttribute('dir','ltr'); inputEl.style.textAlign = 'left'; }
     // Paste button next to the input field itself (guard against double-wrapping
     // when makeCaptcha is re-called on the same input, e.g. on language switch)
     if(inputEl && inputEl.parentElement && !inputEl.parentElement.classList.contains('captcha-paste-wrap')){

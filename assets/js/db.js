@@ -90,6 +90,20 @@ const DB = (function(){
       Object.keys(fresh.settings).forEach(k=>{
         if(cache.settings[k] === undefined) cache.settings[k] = fresh.settings[k];
       });
+      // The site-wide config.js is the source of truth for the connection
+      // UNLESS this specific device has an explicit local preview override
+      // (Settings → الربط والتكامل → "تطبيق ومعاينة على هذا الجهاز"). This
+      // also self-heals browsers whose data was saved before config.js
+      // existed (sheetUrl was '' back then and would otherwise stay stuck
+      // empty forever, which is why sync could silently never start).
+      if(!cache.settings.sheetUrlIsLocalOverride){
+        const cfg = shippedConfig();
+        if(cache.settings.sheetUrl !== (cfg.sheetUrl || '')){
+          cache.settings.sheetUrl = cfg.sheetUrl || '';
+          cache.settings.apiKeyEnc = cfg.apiKey ? encodeSecret(cfg.apiKey) : '';
+          localStorage.setItem(KEY, JSON.stringify(cache));
+        }
+      }
     }
     // keep MODE in sync with whatever sheet URL is currently active
     // (site-wide config.js, or a per-device local override saved in settings)

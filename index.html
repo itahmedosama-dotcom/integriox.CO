@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719">
 </head>
 <body>
 
@@ -89,7 +89,7 @@
       <div class="field">
         <label data-i18n="captcha_label"></label>
         <div class="captcha-box" id="loginCaptchaBox"></div>
-        <input type="text" id="loginCaptchaInput" data-i18n-ph="captcha_label" autocomplete="off" required>
+        <input type="text" id="loginCaptchaInput" dir="ltr" data-i18n-ph="captcha_label" autocomplete="off" required>
       </div>
       <button class="btn btn-primary btn-block" type="submit" data-i18n="btn_login"></button>
     </form>
@@ -144,7 +144,7 @@
       <div class="field">
         <label data-i18n="captcha_label"></label>
         <div class="captcha-box" id="regCaptchaBox"></div>
-        <input type="text" id="regCaptchaInput" data-i18n-ph="captcha_label" autocomplete="off" required>
+        <input type="text" id="regCaptchaInput" dir="ltr" data-i18n-ph="captcha_label" autocomplete="off" required>
       </div>
       <p class="hint" data-i18n="register_note" style="margin-bottom:14px;"></p>
       <button class="btn btn-primary btn-block" type="submit" data-i18n="btn_register"></button>
@@ -159,12 +159,12 @@
   </div>
 </div>
 
-<script src="assets/js/i18n.js"></script>
-<script src="assets/js/lists.js"></script>
-<script src="assets/js/config.js"></script>
-<script src="assets/js/db.js"></script>
-<script src="assets/js/auth.js"></script>
-<script src="assets/js/ui.js"></script>
+<script src="assets/js/i18n.js?v=20260719"></script>
+<script src="assets/js/lists.js?v=20260719"></script>
+<script src="assets/js/config.js?v=20260719"></script>
+<script src="assets/js/db.js?v=20260719"></script>
+<script src="assets/js/auth.js?v=20260719"></script>
+<script src="assets/js/ui.js?v=20260719"></script>
 <script>
   // if already logged in, go straight to dashboard
   if(AUTH.currentUser()) window.location.href = 'dashboard.html';
