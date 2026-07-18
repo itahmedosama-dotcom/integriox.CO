@@ -9,20 +9,20 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719g">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719f"></script>
-<script src="assets/js/lists.js?v=20260719f"></script>
-<script src="assets/js/config.js?v=20260719f"></script>
-<script src="assets/js/db.js?v=20260719f"></script>
-<script src="assets/js/billing.js?v=20260719f"></script>
-<script src="assets/js/auth.js?v=20260719f"></script>
-<script src="assets/js/ui.js?v=20260719f"></script>
-<script src="assets/js/layout.js?v=20260719f"></script>
+<script src="assets/js/i18n.js?v=20260719g"></script>
+<script src="assets/js/lists.js?v=20260719g"></script>
+<script src="assets/js/config.js?v=20260719g"></script>
+<script src="assets/js/db.js?v=20260719g"></script>
+<script src="assets/js/billing.js?v=20260719g"></script>
+<script src="assets/js/auth.js?v=20260719g"></script>
+<script src="assets/js/ui.js?v=20260719g"></script>
+<script src="assets/js/layout.js?v=20260719g"></script>
 <script>
 const ctx = LAYOUT.render('dashboard');
 if(ctx){
@@ -242,7 +242,7 @@ if(ctx){
           ${activeContract ? `
             <div style="display:flex;flex-direction:column;gap:10px;">
               <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_id"></span><strong>${activeContract.id}</strong></div>
-              <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_amount"></span><strong>${UI.fmtMoney(activeContract.amount)}</strong></div>
+              <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_amount"></span><strong>${UI.fmtMoney(activeContract.amount, activeContract.currency)}</strong></div>
               <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_status"></span><span class="badge badge-success" data-i18n="status_${activeContract.status}"></span></div>
               <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_visits_total"></span><span>${activeContract.visitsUsed||0} ${I18N.t('visits_used_of')} ${activeContract.visitsUnlimited ? I18N.t('visits_unlimited') : activeContract.visitsTotal}</span></div>
               <a class="btn btn-outline btn-block" style="margin-top:6px;" href="contract-template.html?id=${activeContract.id}" data-i18n="view_my_contract"></a>
@@ -413,7 +413,7 @@ if(ctx){
           <div class="text-muted" style="font-size:12px;">${c.id}</div>
         </div>
         <div style="text-align:end;">
-          <div style="font-weight:700;font-size:13.5px;">${UI.fmtMoney(c.amount)}</div>
+          <div style="font-weight:700;font-size:13.5px;">${UI.fmtMoney(c.amount, c.currency)}</div>
           <div class="text-muted" style="font-size:11.5px;">${UI.fmtDate(c.endDate || c.startDate)}</div>
         </div>
       </div>`;

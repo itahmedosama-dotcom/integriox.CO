@@ -128,13 +128,13 @@ const UI = (function(){
   }
 
   /* ---------- lightweight captcha (anti-spam, not a real bot-proof CAPTCHA) ----------
-     `inputEl` (optional) is the text field the code should be typed/pasted
-     into. When given, a Copy button (next to the code) and a Paste button
-     (next to the input) are wired up so users never have to transcribe the
-     styled/rotated characters by hand — which is what caused "wrong code"
-     mismatches. Validation also normalizes the input (trim, uppercase,
-     strip spaces, map look-alike characters) so a visually ambiguous
-     character never fails a correct answer. */
+     `inputEl` (optional) is the text field the code should end up in. When
+     given, a Copy button next to the code fills it directly into that
+     field (so users never have to transcribe the styled/rotated
+     characters by hand — the main source of "wrong code" mismatches).
+     Validation also normalizes the input (trim, uppercase, strip spaces,
+     map look-alike characters) so a visually ambiguous character never
+     fails a correct answer. */
   function makeCaptcha(container, inputEl){
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
@@ -162,26 +162,6 @@ const UI = (function(){
     }
     gen();
     if(inputEl){ inputEl.setAttribute('dir','ltr'); inputEl.style.textAlign = 'left'; }
-    // Paste button next to the input field itself (guard against double-wrapping
-    // when makeCaptcha is re-called on the same input, e.g. on language switch)
-    if(inputEl && inputEl.parentElement && !inputEl.parentElement.classList.contains('captcha-paste-wrap')){
-      const wrap = document.createElement('div');
-      wrap.className = 'captcha-paste-wrap';
-      inputEl.parentElement.insertBefore(wrap, inputEl);
-      wrap.appendChild(inputEl);
-      const pasteBtn = document.createElement('button');
-      pasteBtn.type = 'button';
-      pasteBtn.className = 'captcha-paste-btn';
-      pasteBtn.title = I18N.t('captcha_paste');
-      pasteBtn.textContent = I18N.t('captcha_paste');
-      pasteBtn.addEventListener('click', async ()=>{
-        try{
-          const text = await navigator.clipboard.readText();
-          if(text){ inputEl.value = text.trim(); inputEl.focus(); }
-        }catch(e){ toast(I18N.t('captcha_paste_denied'), 'error'); }
-      });
-      wrap.appendChild(pasteBtn);
-    }
     return { verify:(val)=> normalize(val) === normalize(code), refresh: gen };
   }
 
@@ -245,9 +225,14 @@ const UI = (function(){
     });
   }
 
-  function fmtMoney(n){
+  function fmtMoney(n, currencyCode){
     const v = Number(n||0).toLocaleString(I18N.getLang()==='ar' ? 'ar-EG' : 'en-US');
-    return v + ' ' + I18N.t('currency');
+    let label = I18N.t('currency');
+    if(currencyCode && window.DB){
+      const cur = (DB.getSettings().currencies||[]).find(c=>c.code===currencyCode);
+      if(cur) label = I18N.getLang()==='ar' ? (cur.symbol || cur.nameAr) : (cur.symbol || cur.nameEn || cur.code);
+    }
+    return v + ' ' + label;
   }
   function fmtDate(d){
     if(!d) return '—';

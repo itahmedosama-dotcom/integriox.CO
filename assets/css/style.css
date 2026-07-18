@@ -291,6 +291,7 @@ html[dir="rtl"] .main{ margin-right:var(--sidebar-w); }
 .toast{ background:var(--navy); color:#fff; padding:13px 20px; border-radius:var(--radius-sm); box-shadow:var(--shadow-md); font-size:13px; font-weight:600; min-width:220px; animation:toast-in .25s ease; }
 .toast.success{ background:var(--success); }
 .toast.error{ background:var(--danger); }
+.toast.warning{ background:#B7791F; }
 @keyframes toast-in{ from{ opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
 
 .progress-bar{ height:8px; background:var(--sky-100); border-radius:99px; overflow:hidden; }
@@ -395,13 +396,6 @@ html[dir="rtl"] .pwa-install-float{ padding:11px 14px 11px 16px; }
   background:var(--surface); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--ink-soft);
 }
 .captcha-refresh:hover, .captcha-copy:hover{ color:var(--blue); border-color:var(--blue); }
-.captcha-paste-wrap{ display:flex; gap:8px; margin-bottom:14px; }
-.captcha-paste-wrap input{ flex:1; margin-bottom:0 !important; direction:ltr; text-align:left; }
-.captcha-paste-btn{
-  flex-shrink:0; padding:0 14px; border-radius:var(--radius-sm); border:1.5px solid var(--line);
-  background:var(--surface); cursor:pointer; font-size:12.5px; font-weight:700; color:var(--ink-soft);
-}
-.captcha-paste-btn:hover{ color:var(--blue); border-color:var(--blue); }
 
 /* ---------- success confirmation popup ---------- */
 .success-popup-overlay{

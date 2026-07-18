@@ -40,12 +40,27 @@ const DB = (function(){
         // Seeded from LISTS.COUNTRIES with a sensible Saudi VAT default;
         // everything else starts disabled at 0% until the admin fills it in.
         taxes: (window.LISTS ? LISTS.COUNTRIES : []).filter(c=>c.ar!=='أخرى').map(c=>({
-          id: c.ar,
+          id: 'tax_' + Math.random().toString(36).slice(2,9),
           countryAr: c.ar, countryEn: c.en,
           nameAr: 'ضريبة القيمة المضافة', nameEn: 'VAT',
           rate: c.ar==='السعودية' ? 15 : 0,
           enabled: c.ar==='السعودية',
         })),
+        // Contract subscription currencies — editable/extendable directly
+        // from the "add contract" screen, not just Settings.
+        currencies: [
+          { code:'SAR', nameAr:'ريال سعودي', nameEn:'Saudi Riyal', symbol:'ر.س' },
+          { code:'USD', nameAr:'دولار أمريكي', nameEn:'US Dollar', symbol:'$' },
+          { code:'EUR', nameAr:'يورو', nameEn:'Euro', symbol:'€' },
+          { code:'AED', nameAr:'درهم إماراتي', nameEn:'UAE Dirham', symbol:'د.إ' },
+          { code:'EGP', nameAr:'جنيه مصري', nameEn:'Egyptian Pound', symbol:'ج.م' },
+          { code:'KWD', nameAr:'دينار كويتي', nameEn:'Kuwaiti Dinar', symbol:'د.ك' },
+          { code:'QAR', nameAr:'ريال قطري', nameEn:'Qatari Riyal', symbol:'ر.ق' },
+          { code:'BHD', nameAr:'دينار بحريني', nameEn:'Bahraini Dinar', symbol:'د.ب' },
+          { code:'OMR', nameAr:'ريال عماني', nameEn:'Omani Rial', symbol:'ر.ع' },
+          { code:'JOD', nameAr:'دينار أردني', nameEn:'Jordanian Dinar', symbol:'د.أ' },
+          { code:'GBP', nameAr:'جنيه إسترليني', nameEn:'British Pound', symbol:'£' },
+        ],
         sheetUrl: cfg.sheetUrl || '',
         driveFolderId: '',
         apiKeyEnc: cfg.apiKey ? encodeSecret(cfg.apiKey) : '',
@@ -97,8 +112,9 @@ const DB = (function(){
       if(cache[col] === undefined) cache[col] = fresh[col];
     });
     if(cache.settings){
+      let settingsChanged = false;
       Object.keys(fresh.settings).forEach(k=>{
-        if(cache.settings[k] === undefined) cache.settings[k] = fresh.settings[k];
+        if(cache.settings[k] === undefined){ cache.settings[k] = fresh.settings[k]; settingsChanged = true; }
       });
       // The site-wide config.js is the source of truth for the connection
       // UNLESS this specific device has an explicit local preview override
@@ -111,9 +127,10 @@ const DB = (function(){
         if(cache.settings.sheetUrl !== (cfg.sheetUrl || '')){
           cache.settings.sheetUrl = cfg.sheetUrl || '';
           cache.settings.apiKeyEnc = cfg.apiKey ? encodeSecret(cfg.apiKey) : '';
-          localStorage.setItem(KEY, JSON.stringify(cache));
+          settingsChanged = true;
         }
       }
+      if(settingsChanged) localStorage.setItem(KEY, JSON.stringify(cache));
     }
     // keep MODE in sync with whatever sheet URL is currently active
     // (site-wide config.js, or a per-device local override saved in settings)

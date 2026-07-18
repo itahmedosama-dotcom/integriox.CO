@@ -9,18 +9,18 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719g">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719f"></script>
-<script src="assets/js/lists.js?v=20260719f"></script>
-<script src="assets/js/config.js?v=20260719f"></script>
-<script src="assets/js/db.js?v=20260719f"></script>
-<script src="assets/js/auth.js?v=20260719f"></script>
-<script src="assets/js/ui.js?v=20260719f"></script>
-<script src="assets/js/layout.js?v=20260719f"></script>
+<script src="assets/js/i18n.js?v=20260719g"></script>
+<script src="assets/js/lists.js?v=20260719g"></script>
+<script src="assets/js/config.js?v=20260719g"></script>
+<script src="assets/js/db.js?v=20260719g"></script>
+<script src="assets/js/auth.js?v=20260719g"></script>
+<script src="assets/js/ui.js?v=20260719g"></script>
+<script src="assets/js/layout.js?v=20260719g"></script>
 <script>
 const ctx = LAYOUT.render('clients');
 if(ctx){
@@ -218,8 +218,23 @@ if(ctx){
         DB.update('clients', client.id, data);
         DB.logActivity('تم تعديل بيانات العميل ' + nameAr, 'Client updated: ' + nameAr, 'client');
       } else {
-        DB.insert('clients', { ...data, createdAt: DB.todayISO() });
+        const newClient = DB.insert('clients', { ...data, createdAt: DB.todayISO() });
         DB.logActivity('تمت إضافة عميل جديد ' + nameAr, 'New client added: ' + nameAr, 'client');
+
+        // Every client added from this screen automatically gets a login
+        // account too, so they don't need to self-register separately.
+        const email = (data.email || '').trim();
+        const existingUser = email ? DB.all('users').find(u=>u.email.toLowerCase()===email.toLowerCase()) : null;
+        if(email && !existingUser){
+          DB.insert('users', {
+            id: DB.uid('u'), name: nameAr, email, username:'', password:'123456',
+            phone: data.phone, role:'client', status:'approved', clientId: newClient.id,
+          });
+          DB.logActivity('تم إنشاء حساب دخول تلقائيًا للعميل ' + nameAr, 'Login account auto-created for client ' + nameAr, 'user');
+          UI.toast(I18N.t('client_user_created').replace('{email}', email));
+        } else if(!email){
+          UI.toast(I18N.t('client_user_skipped_no_email'), 'warning');
+        }
       }
       UI.closeModal();
       UI.toast(I18N.t('saved_ok'), 'success');

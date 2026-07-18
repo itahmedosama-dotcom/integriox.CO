@@ -9,18 +9,18 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719g">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719f"></script>
-<script src="assets/js/lists.js?v=20260719f"></script>
-<script src="assets/js/config.js?v=20260719f"></script>
-<script src="assets/js/db.js?v=20260719f"></script>
-<script src="assets/js/auth.js?v=20260719f"></script>
-<script src="assets/js/ui.js?v=20260719f"></script>
-<script src="assets/js/layout.js?v=20260719f"></script>
+<script src="assets/js/i18n.js?v=20260719g"></script>
+<script src="assets/js/lists.js?v=20260719g"></script>
+<script src="assets/js/config.js?v=20260719g"></script>
+<script src="assets/js/db.js?v=20260719g"></script>
+<script src="assets/js/auth.js?v=20260719g"></script>
+<script src="assets/js/ui.js?v=20260719g"></script>
+<script src="assets/js/layout.js?v=20260719g"></script>
 <script>
 const ctx = LAYOUT.render('settings');
 if(ctx){
@@ -108,14 +108,17 @@ if(ctx){
         <div class="card">
           <div class="card-header"><h3 class="card-title" data-i18n="settings_tab_taxes"></h3></div>
           <p class="hint" style="margin-bottom:14px;" data-i18n="taxes_hint"></p>
-          <div class="search-box" style="max-width:280px; margin-bottom:12px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="text" id="taxSearch" data-i18n-ph="search">
+          <div class="filters-bar" style="padding:0; border:none; margin-bottom:12px;">
+            <div class="search-box" style="max-width:280px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" id="taxSearch" data-i18n-ph="search">
+            </div>
+            <button class="btn btn-outline" id="addTaxBtn">+ <span data-i18n="add_tax"></span></button>
           </div>
           <div class="table-wrap" style="max-height:480px; overflow-y:auto;">
             <table>
               <thead><tr>
-                <th data-i18n="tax_country"></th><th data-i18n="tax_name"></th><th data-i18n="tax_rate"></th><th data-i18n="tax_enabled"></th>
+                <th data-i18n="tax_country"></th><th data-i18n="tax_name"></th><th data-i18n="tax_rate"></th><th data-i18n="tax_enabled"></th><th></th>
               </tr></thead>
               <tbody id="taxRows"></tbody>
             </table>
@@ -707,25 +710,63 @@ if(ctx){
     function renderTaxes(){
       const rowsEl = contentEl.querySelector('#taxRows');
       const searchEl = contentEl.querySelector('#taxSearch');
-      const taxes = (DB.getSettings().taxes || []).slice();
+      let taxes = (DB.getSettings().taxes || []).slice();
+      // self-heal: if the list is empty for any reason (older/blank saved
+      // data), seed it fresh from the country list right here.
+      if(!taxes.length && window.LISTS){
+        taxes = LISTS.COUNTRIES.filter(c=>c.ar!=='أخرى').map(c=>({
+          id: 'tax_' + Math.random().toString(36).slice(2,9), countryAr: c.ar, countryEn: c.en,
+          nameAr: 'ضريبة القيمة المضافة', nameEn: 'VAT',
+          rate: c.ar==='السعودية' ? 15 : 0,
+          enabled: c.ar==='السعودية',
+        }));
+        DB.saveSettings({ taxes });
+      }
+
+      function countryOptionsFor(selectedAr){
+        return LISTS.COUNTRIES.filter(c=>c.ar!=='أخرى').map(c=>
+          `<option value="${c.ar}" data-en="${c.en}" ${c.ar===selectedAr?'selected':''}>${I18N.getLang()==='ar'?c.ar:c.en}</option>`
+        ).join('');
+      }
 
       function draw(filter){
         const f = (filter||'').toLowerCase();
-        const list = taxes.filter(t=> !f || t.countryAr.toLowerCase().includes(f) || (t.countryEn||'').toLowerCase().includes(f));
-        rowsEl.innerHTML = list.map((t,i)=>{
-          const idx = taxes.indexOf(t);
-          return `<tr>
-            <td>${I18N.getLang()==='ar' ? t.countryAr : (t.countryEn||t.countryAr)}</td>
+        rowsEl.innerHTML = taxes.map((t,idx)=>({t,idx})).filter(({t})=>
+          !f || t.countryAr.toLowerCase().includes(f) || (t.countryEn||'').toLowerCase().includes(f)
+        ).map(({t,idx})=>`
+          <tr data-row="${idx}">
+            <td><select data-tax-country="${idx}">${countryOptionsFor(t.countryAr)}</select></td>
             <td><input type="text" data-tax-name="${idx}" value="${t.nameAr||''}" style="min-width:160px;"></td>
             <td><input type="number" data-tax-rate="${idx}" value="${t.rate||0}" min="0" max="100" step="0.1" style="width:90px;"></td>
             <td><input type="checkbox" data-tax-enabled="${idx}" style="width:auto;" ${t.enabled?'checked':''}></td>
-          </tr>`;
-        }).join('');
+            <td><button type="button" class="btn btn-sm btn-danger" data-tax-del="${idx}">×</button></td>
+          </tr>`).join('');
+        rowsEl.querySelectorAll('[data-tax-del]').forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            taxes.splice(Number(btn.dataset.taxDel), 1);
+            draw(searchEl.value);
+          });
+        });
       }
       draw('');
       searchEl.addEventListener('input', e=>draw(e.target.value));
 
+      contentEl.querySelector('#addTaxBtn').addEventListener('click', ()=>{
+        const first = window.LISTS ? LISTS.COUNTRIES.find(c=>c.ar!=='أخرى') : null;
+        taxes.push({
+          id: DB.uid('tax'),
+          countryAr: first ? first.ar : '', countryEn: first ? first.en : '',
+          nameAr: '', nameEn: '', rate: 0, enabled: false,
+        });
+        draw(searchEl.value);
+      });
+
       contentEl.querySelector('#saveTaxes').addEventListener('click', ()=>{
+        rowsEl.querySelectorAll('[data-tax-country]').forEach(sel=>{
+          const t = taxes[Number(sel.dataset.taxCountry)];
+          t.countryAr = sel.value;
+          t.countryEn = sel.selectedOptions[0].dataset.en || sel.value;
+        });
         rowsEl.querySelectorAll('[data-tax-name]').forEach(inp=>{
           taxes[Number(inp.dataset.taxName)].nameAr = inp.value.trim();
         });

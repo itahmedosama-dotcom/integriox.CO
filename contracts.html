@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719g">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719f"></script>
-<script src="assets/js/lists.js?v=20260719f"></script>
-<script src="assets/js/config.js?v=20260719f"></script>
-<script src="assets/js/db.js?v=20260719f"></script>
-<script src="assets/js/billing.js?v=20260719f"></script>
-<script src="assets/js/auth.js?v=20260719f"></script>
-<script src="assets/js/ui.js?v=20260719f"></script>
-<script src="assets/js/layout.js?v=20260719f"></script>
+<script src="assets/js/i18n.js?v=20260719g"></script>
+<script src="assets/js/lists.js?v=20260719g"></script>
+<script src="assets/js/config.js?v=20260719g"></script>
+<script src="assets/js/db.js?v=20260719g"></script>
+<script src="assets/js/billing.js?v=20260719g"></script>
+<script src="assets/js/auth.js?v=20260719g"></script>
+<script src="assets/js/ui.js?v=20260719g"></script>
+<script src="assets/js/layout.js?v=20260719g"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -82,7 +82,7 @@ if(ctx){
         return `<tr>
           <td><strong>${c.id}</strong></td>
           <td>${client?client.name:'—'}</td>
-          <td>${UI.fmtMoney(c.amount)}</td>
+          <td>${UI.fmtMoney(c.amount, c.currency)}</td>
           <td><span data-i18n="${typeLabel[c.contractType]}"></span></td>
           <td>${c.durationMonths} <span data-i18n="months"></span> · <span data-i18n="${c.periodType==='open'?'period_open':'period_fixed'}"></span></td>
           <td><span class="badge ${statusBadge[c.status]}" data-i18n="status_${c.status==='active'?'active':c.status}"></span></td>
@@ -114,8 +114,15 @@ if(ctx){
         </div>
         <div class="field-row">
           <div class="field"><label data-i18n="contract_amount"></label><input type="number" id="fAmount" min="0"></div>
-          <div class="field"><label data-i18n="contract_duration"></label><input type="number" id="fDuration" min="1" value="12"></div>
+          <div class="field">
+            <label data-i18n="contract_currency"></label>
+            <div style="display:flex; gap:8px;">
+              <select id="fCurrency" style="flex:1;"></select>
+              <button type="button" class="btn btn-outline btn-sm" id="addCurrencyBtn">+</button>
+            </div>
+          </div>
         </div>
+        <div class="field"><label data-i18n="contract_duration"></label><input type="number" id="fDuration" min="1" value="12"></div>
         <div class="field">
           <label data-i18n="contract_period_type"></label>
           <div class="radio-group">
@@ -171,6 +178,28 @@ if(ctx){
     `);
     I18N.apply(overlay);
 
+    const currencySelect = overlay.querySelector('#fCurrency');
+    function drawCurrencies(selected){
+      const currencies = DB.getSettings().currencies || [];
+      currencySelect.innerHTML = currencies.map(c=>`
+        <option value="${c.code}" ${c.code===(selected||'SAR')?'selected':''}>
+          ${c.code} — ${I18N.getLang()==='ar'?c.nameAr:c.nameEn}
+        </option>`).join('');
+    }
+    drawCurrencies('SAR');
+    overlay.querySelector('#addCurrencyBtn').addEventListener('click', ()=>{
+      const code = (window.prompt(I18N.t('currency_code_prompt'))||'').trim().toUpperCase();
+      if(!code) return;
+      const currencies = DB.getSettings().currencies || [];
+      if(currencies.some(c=>c.code===code)){ drawCurrencies(code); return; }
+      const nameAr = (window.prompt(I18N.t('currency_name_prompt'))||code).trim();
+      const symbol = (window.prompt(I18N.t('currency_symbol_prompt'))||code).trim();
+      const updated = currencies.concat([{ code, nameAr, nameEn:nameAr, symbol }]);
+      DB.saveSettings({ currencies: updated });
+      DB.logActivity('تمت إضافة عملة جديدة ' + code, 'New currency added ' + code, 'settings');
+      drawCurrencies(code);
+    });
+
     const enabledTaxes = (DB.getSettings().taxes || []).filter(t=>t.enabled);
     const taxBox = overlay.querySelector('#taxCheckboxes');
     if(!enabledTaxes.length){
@@ -214,6 +243,7 @@ if(ctx){
         id: 'CT-' + nextNum,
         clientId: overlay.querySelector('#fClient').value,
         amount: Number(overlay.querySelector('#fAmount').value||0),
+        currency: currencySelect.value,
         durationMonths: Number(overlay.querySelector('#fDuration').value||12),
         periodType: overlay.querySelector('input[name=fPeriod]:checked').value,
         contractType: overlay.querySelector('#fType').value,
