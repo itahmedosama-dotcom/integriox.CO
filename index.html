@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719c">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719d">
 </head>
 <body>
 
@@ -167,12 +167,12 @@
   </div>
 </div>
 
-<script src="assets/js/i18n.js?v=20260719c"></script>
-<script src="assets/js/lists.js?v=20260719c"></script>
-<script src="assets/js/config.js?v=20260719c"></script>
-<script src="assets/js/db.js?v=20260719c"></script>
-<script src="assets/js/auth.js?v=20260719c"></script>
-<script src="assets/js/ui.js?v=20260719c"></script>
+<script src="assets/js/i18n.js?v=20260719d"></script>
+<script src="assets/js/lists.js?v=20260719d"></script>
+<script src="assets/js/config.js?v=20260719d"></script>
+<script src="assets/js/db.js?v=20260719d"></script>
+<script src="assets/js/auth.js?v=20260719d"></script>
+<script src="assets/js/ui.js?v=20260719d"></script>
 <script>
   // if already logged in, go straight to dashboard
   if(AUTH.currentUser()) window.location.href = 'dashboard.html';
@@ -220,6 +220,18 @@
         nd.classList.toggle('current', i === n);
       });
       wMsg.className = 'form-msg';
+    }
+    // The connect-Sheet step only makes sense when the site truly has no
+    // Google Sheet connection yet. Since assets/js/config.js now ships a
+    // ready-made connection by default, most fresh installs are already
+    // connected — so skip straight to the admin-account step and hide the
+    // now-irrelevant progress node for step 1.
+    const alreadyConnected = !!DB.getSettings().sheetUrl;
+    if(alreadyConnected){
+      const track = setupWrap.querySelector('.node-track');
+      if(track) track.style.display = 'none';
+      document.getElementById('wBack').style.display = 'none';
+      goStep(2);
     }
     document.getElementById('wNext').addEventListener('click', ()=>{
       const sheetUrl = document.getElementById('wSheetUrl').value.trim();
