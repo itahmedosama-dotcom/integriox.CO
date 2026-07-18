@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719k">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719l">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719k"></script>
-<script src="assets/js/lists.js?v=20260719k"></script>
-<script src="assets/js/config.js?v=20260719k"></script>
-<script src="assets/js/db.js?v=20260719k"></script>
-<script src="assets/js/billing.js?v=20260719k"></script>
-<script src="assets/js/auth.js?v=20260719k"></script>
-<script src="assets/js/ui.js?v=20260719k"></script>
-<script src="assets/js/layout.js?v=20260719k"></script>
+<script src="assets/js/i18n.js?v=20260719l"></script>
+<script src="assets/js/lists.js?v=20260719l"></script>
+<script src="assets/js/config.js?v=20260719l"></script>
+<script src="assets/js/db.js?v=20260719l"></script>
+<script src="assets/js/billing.js?v=20260719l"></script>
+<script src="assets/js/auth.js?v=20260719l"></script>
+<script src="assets/js/ui.js?v=20260719l"></script>
+<script src="assets/js/layout.js?v=20260719l"></script>
 <script>
 const ctx = LAYOUT.render('payments');
 if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
@@ -29,7 +29,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
   const isAdmin = user.role === 'admin';
   let proofFile = null;
 
-  const statusBadge = { review:'badge-warning', confirmed:'badge-success', rejected:'badge-danger' };
+  const statusBadge = { review:'badge-warning', confirmed:'badge-success', rejected:'badge-danger', not_paid:'badge-danger' };
   const methodLabel = { bank:'method_bank', cash:'method_cash', other:'method_other' };
 
   function render(){
@@ -44,6 +44,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
           <option value="" data-i18n="all"></option>
           <option value="review" data-i18n="pay_review"></option>
           <option value="confirmed" data-i18n="pay_confirmed"></option>
+          <option value="not_paid" data-i18n="pay_not_paid"></option>
           <option value="rejected" data-i18n="pay_rejected"></option>
         </select>
         ${isAdmin ? `<button type="button" class="btn btn-outline" id="bulkReminderBtn">💬 <span data-i18n="bulk_remind_overdue"></span></button>` : ''}
@@ -231,6 +232,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
           <select id="fStatus">
             <option value="review" data-i18n="pay_review" ${payment.status==='review'?'selected':''}></option>
             <option value="confirmed" data-i18n="pay_confirmed" ${payment.status==='confirmed'?'selected':''}></option>
+            <option value="not_paid" data-i18n="pay_not_paid" ${payment.status==='not_paid'?'selected':''}></option>
             <option value="rejected" data-i18n="pay_rejected" ${payment.status==='rejected'?'selected':''}></option>
           </select>
         </div>` : ''}

@@ -77,6 +77,7 @@ const LAYOUT = (function(){
             <h1 id="pageTitle" data-i18n="${NAV.find(n=>n.key===activeKey)?.label || 'nav_dashboard'}"></h1>
           </div>
           <div class="topbar-right">
+            <a class="quick-action-btn no-print" id="quickActionBtn" href="#"></a>
             <div class="lang-switch">
               <button data-lang="ar">AR</button>
               <button data-lang="en">EN</button>
@@ -110,7 +111,21 @@ const LAYOUT = (function(){
     if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
     shell.querySelector('#userChipBtn').addEventListener('click', ()=> openProfileModal(user));
     mountNotifications(shell, user);
+    mountQuickAction(shell, user);
     return { user, contentEl: shell.querySelector('#pageContent') };
+  }
+
+  function mountQuickAction(shell, user){
+    const el = shell.querySelector('#quickActionBtn');
+    if(!el) return;
+    if(user.role === 'technician'){
+      el.href = 'visits.html';
+      el.innerHTML = `<span class="quick-action-icon">🛠️</span><span data-i18n="my_visits_assigned"></span>`;
+    } else {
+      el.href = 'visit-request.html';
+      el.innerHTML = `<span class="quick-action-icon">⚡</span><span data-i18n="request_new_visit"></span>`;
+    }
+    I18N.apply(el);
   }
 
   function computeNotifications(user){

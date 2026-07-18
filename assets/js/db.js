@@ -36,6 +36,8 @@ const DB = (function(){
         companyAddress: '',
         companyCr: '',
         companyTaxNumber: '',
+        bankName: '',
+        iban: '',
         // Per-country tax definitions — editable from Settings → الضرائب.
         // Seeded from LISTS.COUNTRIES with a sensible Saudi VAT default;
         // everything else starts disabled at 0% until the admin fills it in.
