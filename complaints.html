@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Complaints</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B2545">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/lists.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+const ctx = LAYOUT.render('complaints');
+if(ctx){
+  const { user, contentEl } = ctx;
+  const isAdmin = user.role === 'admin';
+  const isTech = user.role === 'technician';
+  const isClient = user.role === 'client';
+
+  const statusBadge = { open:'badge-warning', in_progress:'badge-info', resolved:'badge-success', closed:'badge-mute' };
+
+  function render(){
+    let complaints = DB.all('complaints');
+    if(isClient) complaints = complaints.filter(c=>c.raisedBy==='client' && c.clientId===user.clientId);
+    if(isTech) complaints = complaints.filter(c=>c.raisedBy==='technician' && c.techId===user.techId);
+
+    const clients = DB.all('clients');
+    const techs = DB.all('technicians');
+
+    contentEl.innerHTML = `
+      <div class="filters-bar">
+        ${isAdmin ? `
+        <select id="statusFilter">
+          <option value="" data-i18n="all"></option>
+          <option value="open" data-i18n="complaint_status_open"></option>
+          <option value="in_progress" data-i18n="complaint_status_in_progress"></option>
+          <option value="resolved" data-i18n="complaint_status_resolved"></option>
+          <option value="closed" data-i18n="complaint_status_closed"></option>
+        </select>
+        <select id="raisedByFilter">
+          <option value="" data-i18n="all"></option>
+          <option value="client" data-i18n="raised_by_client"></option>
+          <option value="technician" data-i18n="raised_by_technician"></option>
+        </select>` : ''}
+        <button class="btn btn-primary" id="addBtn" data-i18n="add_complaint"></button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="complaint_subject"></th>
+              ${isAdmin ? `<th data-i18n="complaint_raised_by"></th>` : ''}
+              <th data-i18n="complaint_related_tech"></th>
+              <th data-i18n="complaint_created_at"></th>
+              <th data-i18n="complaint_status"></th>
+              <th data-i18n="actions"></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state hidden"><div data-i18n="no_complaints"></div></div>
+      </div>
+    `;
+    I18N.apply(contentEl);
+    const rowsEl = contentEl.querySelector('#rows');
+
+    function draw(){
+      const st = isAdmin ? contentEl.querySelector('#statusFilter').value : '';
+      const rb = isAdmin ? contentEl.querySelector('#raisedByFilter').value : '';
+      const list = complaints
+        .filter(c=> !st || c.status===st)
+        .filter(c=> !rb || c.raisedBy===rb)
+        .sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+      contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
+      rowsEl.innerHTML = list.map(c=>{
+        const targetTech = techs.find(t=>t.id===c.targetTechId);
+        const raiser = c.raisedBy==='client' ? clients.find(x=>x.id===c.clientId) : techs.find(x=>x.id===c.techId);
+        return `<tr>
+          <td>${c.subject||'—'}</td>
+          ${isAdmin ? `<td>${raiser ? raiser.name : '—'} <span class="text-muted" style="font-size:11px;">(${I18N.t(c.raisedBy==='client'?'raised_by_client':'raised_by_technician')})</span></td>` : ''}
+          <td>${targetTech ? targetTech.name : '—'}</td>
+          <td class="text-muted">${UI.fmtDate(c.createdAt)}</td>
+          <td><span class="badge ${statusBadge[c.status]||'badge-mute'}" data-i18n="complaint_status_${c.status}"></span></td>
+          <td class="row-actions">
+            <button class="btn btn-sm btn-outline" data-view="${c.id}" data-i18n="view_complaint"></button>
+          </td>
+        </tr>`;
+      }).join('');
+      I18N.apply(rowsEl);
+      rowsEl.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click', ()=>openDetails(complaints.find(c=>c.id===b.dataset.view))));
+    }
+    if(isAdmin){
+      contentEl.querySelector('#statusFilter').addEventListener('change', draw);
+      contentEl.querySelector('#raisedByFilter').addEventListener('change', draw);
+    }
+    contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm());
+    draw();
+  }
+
+  function openForm(){
+    const techs = DB.all('technicians');
+    const myVisits = isClient
+      ? DB.all('visits').filter(v=>v.clientId===user.clientId)
+      : (isTech ? DB.all('visits').filter(v=>v.techId===user.techId) : []);
+
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="add_complaint"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        ${isClient ? `
+        <div class="field">
+          <label data-i18n="complaint_type"></label>
+          <div class="radio-group">
+            <label class="radio-card active">
+              <input type="radio" name="cType" value="technician" checked>
+              <span data-i18n="complaint_type_technician"></span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="cType" value="other">
+              <span data-i18n="complaint_type_other"></span>
+            </label>
+          </div>
+        </div>
+        <div id="techTargetWrap">
+          <div class="field">
+            <label data-i18n="complaint_related_tech"></label>
+            <select id="fTargetTech">${techs.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>
+          </div>
+          <div class="field">
+            <label data-i18n="complaint_related_visit"></label>
+            <select id="fVisit"><option value="" data-i18n="complaint_no_target"></option>${myVisits.map(v=>`<option value="${v.id}">${v.id} — ${UI.fmtDate(v.date)}</option>`).join('')}</select>
+          </div>
+        </div>` : ''}
+        ${isTech ? `
+        <div class="field">
+          <label data-i18n="complaint_related_visit"></label>
+          <select id="fVisit"><option value="" data-i18n="complaint_no_target"></option>${myVisits.map(v=>`<option value="${v.id}">${v.id} — ${UI.fmtDate(v.date)}</option>`).join('')}</select>
+        </div>` : ''}
+        <div class="field"><label data-i18n="complaint_subject"></label><input type="text" id="fSubject"></div>
+        <div class="field"><label data-i18n="complaint_desc"></label><textarea id="fDesc" style="min-height:120px;"></textarea></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
+        <button class="btn btn-primary" id="mSave" data-i18n="submit_request"></button>
+      </div>
+    `);
+    I18N.apply(overlay);
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
+
+    if(isClient){
+      overlay.querySelectorAll('input[name=cType]').forEach(r=>{
+        r.addEventListener('change', ()=>{
+          overlay.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
+          r.closest('.radio-card').classList.add('active');
+          overlay.querySelector('#techTargetWrap').style.display = r.value==='technician' ? '' : 'none';
+        });
+      });
+    }
+
+    overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      const subject = overlay.querySelector('#fSubject').value.trim();
+      const description = overlay.querySelector('#fDesc').value.trim();
+      if(!subject || !description){ UI.toast(I18N.t('err_required'), 'error'); return; }
+
+      let type = 'other', targetTechId = null, relatedVisitId = null;
+      if(isClient){
+        type = overlay.querySelector('input[name=cType]:checked').value;
+        if(type==='technician'){
+          targetTechId = overlay.querySelector('#fTargetTech').value;
+        }
+        relatedVisitId = overlay.querySelector('#fVisit') ? overlay.querySelector('#fVisit').value || null : null;
+      } else if(isTech){
+        relatedVisitId = overlay.querySelector('#fVisit') ? overlay.querySelector('#fVisit').value || null : null;
+      }
+
+      const data = {
+        id: 'C-' + (7000 + DB.all('complaints').length + 1),
+        raisedBy: isClient ? 'client' : 'technician',
+        clientId: isClient ? user.clientId : null,
+        techId: isTech ? user.techId : null,
+        type, targetTechId, relatedVisitId,
+        subject, description,
+        status: 'open',
+        messages: [],
+        createdAt: new Date().toISOString(),
+      };
+      DB.insert('complaints', data);
+      DB.logActivity('تم تقديم شكوى جديدة: ' + subject, 'New complaint submitted: ' + subject, 'other');
+      UI.closeModal(); UI.toast(I18N.t('saved_ok'), 'success'); render();
+    });
+  }
+
+  function openDetails(c){
+    if(!c) return;
+    const clients = DB.all('clients');
+    const techs = DB.all('technicians');
+    const targetTech = techs.find(t=>t.id===c.targetTechId);
+    const visit = c.relatedVisitId ? DB.get('visits', c.relatedVisitId) : null;
+    const raiser = c.raisedBy==='client' ? clients.find(x=>x.id===c.clientId) : techs.find(x=>x.id===c.techId);
+
+    const canReply = true; // admin, and the original submitter, can add follow-up messages
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="view_complaint"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field"><label data-i18n="complaint_raised_by"></label><div>${raiser?raiser.name:'—'} (${I18N.t(c.raisedBy==='client'?'raised_by_client':'raised_by_technician')})</div></div>
+          <div class="field"><label data-i18n="complaint_created_at"></label><div>${UI.fmtDate(c.createdAt)}</div></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="complaint_related_tech"></label><div>${targetTech?targetTech.name:'—'}</div></div>
+          <div class="field"><label data-i18n="complaint_related_visit"></label><div>${visit?visit.id:'—'}</div></div>
+        </div>
+        <div class="field"><label data-i18n="complaint_subject"></label><div>${c.subject}</div></div>
+        <div class="field"><label data-i18n="complaint_desc"></label><div class="terms-box" style="max-height:none;">${c.description}</div></div>
+
+        ${isAdmin ? `
+        <div class="field">
+          <label data-i18n="complaint_status"></label>
+          <select id="fStatus">
+            <option value="open" data-i18n="complaint_status_open" ${c.status==='open'?'selected':''}></option>
+            <option value="in_progress" data-i18n="complaint_status_in_progress" ${c.status==='in_progress'?'selected':''}></option>
+            <option value="resolved" data-i18n="complaint_status_resolved" ${c.status==='resolved'?'selected':''}></option>
+            <option value="closed" data-i18n="complaint_status_closed" ${c.status==='closed'?'selected':''}></option>
+          </select>
+        </div>` : ''}
+
+        <div class="field">
+          <label data-i18n="complaint_thread"></label>
+          <div id="threadBody" style="max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px;"></div>
+        </div>
+        ${canReply ? `
+        <div class="field">
+          <label data-i18n="complaint_reply"></label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="fReply" data-i18n-ph="complaint_reply_placeholder" style="flex:1;">
+            <button class="btn btn-primary btn-sm" id="sendReplyBtn" data-i18n="send_reply"></button>
+          </div>
+        </div>` : ''}
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="mClose2" data-i18n="close"></button>
+      </div>
+    `);
+    I18N.apply(overlay);
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mClose2').addEventListener('click', UI.closeModal);
+
+    function drawThread(){
+      const body = overlay.querySelector('#threadBody');
+      const msgs = c.messages || [];
+      if(!msgs.length){ body.innerHTML = `<div class="text-muted" style="font-size:12.5px;">${I18N.t('complaint_thread_empty')}</div>`; return; }
+      const byLabel = { client:'complaint_by_client', technician:'complaint_by_technician', admin:'complaint_by_admin' };
+      body.innerHTML = msgs.map(m=>`
+        <div style="padding:8px 0; border-bottom:1px solid var(--line);">
+          <div style="font-size:12px; font-weight:700; color:var(--blue);">${I18N.t(byLabel[m.by]||'complaint_by_admin')}</div>
+          <div style="font-size:13px;">${m.text}</div>
+          <div class="text-muted" style="font-size:11px;">${UI.fmtDate(m.at)}</div>
+        </div>`).join('');
+    }
+    drawThread();
+
+    if(isAdmin){
+      overlay.querySelector('#fStatus').addEventListener('change', (e)=>{
+        DB.update('complaints', c.id, { status:e.target.value });
+        c.status = e.target.value;
+        DB.logActivity('تم تحديث حالة الشكوى ' + c.id, 'Complaint status updated ' + c.id, 'other');
+        UI.toast(I18N.t('saved_ok'), 'success');
+      });
+    }
+
+    const replyBtn = overlay.querySelector('#sendReplyBtn');
+    if(replyBtn){
+      replyBtn.addEventListener('click', ()=>{
+        const input = overlay.querySelector('#fReply');
+        const text = input.value.trim();
+        if(!text) return;
+        const by = isAdmin ? 'admin' : (isClient ? 'client' : 'technician');
+        const msg = { by, text, at: new Date().toISOString() };
+        c.messages = c.messages || [];
+        c.messages.push(msg);
+        const patch = { messages: c.messages };
+        if(isAdmin && c.status==='open') patch.status = 'in_progress';
+        DB.update('complaints', c.id, patch);
+        if(patch.status) c.status = patch.status;
+        input.value = '';
+        drawThread();
+        UI.toast(I18N.t('saved_ok'), 'success');
+      });
+    }
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>

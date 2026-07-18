@@ -34,6 +34,8 @@ const DB = (function(){
         companyPhone: '053-939',
         companyEmail: 'info@integriox.com',
         companyAddress: '',
+        companyCr: '',
+        companyTaxNumber: '',
         sheetUrl: cfg.sheetUrl || '',
         driveFolderId: '',
         apiKeyEnc: cfg.apiKey ? encodeSecret(cfg.apiKey) : '',
@@ -63,7 +65,8 @@ const DB = (function(){
       visits: [],
       payments: [],
       invoices: [],
-      activity: []
+      activity: [],
+      complaints: []
     };
   }
 
@@ -76,6 +79,17 @@ const DB = (function(){
       cache = s;
     } else {
       try{ cache = JSON.parse(raw); } catch(e){ cache = seed(); localStorage.setItem(KEY, JSON.stringify(cache)); }
+    }
+    // migration safety net: older saved DBs may be missing collections/fields
+    // introduced later — fill them in without touching existing data.
+    const fresh = seed();
+    Object.keys(fresh).forEach(col=>{
+      if(cache[col] === undefined) cache[col] = fresh[col];
+    });
+    if(cache.settings){
+      Object.keys(fresh.settings).forEach(k=>{
+        if(cache.settings[k] === undefined) cache.settings[k] = fresh.settings[k];
+      });
     }
     // keep MODE in sync with whatever sheet URL is currently active
     // (site-wide config.js, or a per-device local override saved in settings)

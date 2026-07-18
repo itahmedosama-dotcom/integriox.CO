@@ -65,12 +65,16 @@ if(ctx){
             <h4 data-i18n="party_a" style="margin:0 0 8px;"></h4>
             <div style="font-size:13.5px; line-height:2;">
               ${settings.companyName}<br>${settings.companyPhone}<br>${settings.companyEmail}
+              ${settings.companyCr ? `<br>${I18N.t('company_cr')}: ${settings.companyCr}` : ''}
+              ${settings.companyTaxNumber ? `<br>${I18N.t('company_tax_number')}: ${settings.companyTaxNumber}` : ''}
             </div>
           </div>
           <div>
             <h4 data-i18n="party_b" style="margin:0 0 8px;"></h4>
             <div style="font-size:13.5px; line-height:2;">
               ${client?client.name:'—'}<br>${client?client.phone:''}<br>${client?client.address:''}
+              ${client && client.crNumber ? `<br>${I18N.t('client_cr')}: ${client.crNumber}` : ''}
+              ${client && client.taxNumber ? `<br>${I18N.t('client_tax_number')}: ${client.taxNumber}` : ''}
             </div>
           </div>
         </div>

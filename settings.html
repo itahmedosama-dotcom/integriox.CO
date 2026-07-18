@@ -51,6 +51,10 @@ if(ctx){
             <div class="field"><label data-i18n="email"></label><input type="email" id="sEmail" value="${settings.companyEmail}"></div>
           </div>
           <div class="field"><label data-i18n="client_address"></label><input type="text" id="sAddress" value="${settings.companyAddress}"></div>
+          <div class="field-row">
+            <div class="field"><label data-i18n="company_cr"></label><input type="text" id="sCr" value="${settings.companyCr||''}"></div>
+            <div class="field"><label data-i18n="company_tax_number"></label><input type="text" id="sTaxNumber" value="${settings.companyTaxNumber||''}"></div>
+          </div>
           <button class="btn btn-primary" id="saveGeneral" data-i18n="save_changes"></button>
         </div>
       </div>
@@ -142,11 +146,44 @@ if(ctx){
           <p class="hint" style="color:var(--danger); margin-bottom:16px;" data-i18n="backup_warning"></p>
           <button class="btn btn-primary" id="downloadBackup" data-i18n="backup_download_btn"></button>
         </div>
-        <div class="card" style="max-width:680px;">
+        <div class="card" style="max-width:680px; margin-bottom:20px;">
           <div class="card-header"><h3 class="card-title" data-i18n="backup_restore_title"></h3></div>
           <p class="hint" style="margin-bottom:14px;" data-i18n="backup_restore_desc"></p>
           <input type="file" id="restoreFile" accept=".xlsx" class="hidden">
           <button class="btn btn-outline" id="restoreBackupBtn" data-i18n="backup_restore_btn"></button>
+        </div>
+
+        <div class="card" style="max-width:680px; border-color:var(--danger);">
+          <div class="card-header"><h3 class="card-title" style="color:var(--danger);" data-i18n="backup_danger_title"></h3></div>
+
+          <div style="padding-bottom:18px; margin-bottom:18px; border-bottom:1px solid var(--line);">
+            <h4 style="margin:0 0 6px; font-size:14px;" data-i18n="backup_delete_collection_title"></h4>
+            <p class="hint" style="margin-bottom:10px;" data-i18n="backup_delete_collection_desc"></p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <select id="deleteCollectionSelect" style="min-width:200px;">
+                <option value="clients" data-i18n="col_clients"></option>
+                <option value="technicians" data-i18n="col_technicians"></option>
+                <option value="contracts" data-i18n="col_contracts"></option>
+                <option value="visits" data-i18n="col_visits"></option>
+                <option value="payments" data-i18n="col_payments"></option>
+                <option value="invoices" data-i18n="col_invoices"></option>
+                <option value="complaints" data-i18n="col_complaints"></option>
+                <option value="users" data-i18n="col_users"></option>
+                <option value="activity" data-i18n="col_activity"></option>
+              </select>
+              <button class="btn btn-danger" id="deleteCollectionBtn" data-i18n="backup_delete_collection_btn"></button>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="margin:0 0 6px; font-size:14px;" data-i18n="backup_delete_all_title"></h4>
+            <p class="hint" style="margin-bottom:10px; color:var(--danger);" data-i18n="backup_delete_all_desc"></p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <input type="text" id="deleteAllConfirmInput" placeholder="DELETE" style="max-width:160px;">
+              <button class="btn btn-danger" id="deleteAllBtn" data-i18n="backup_delete_all_btn"></button>
+            </div>
+            <p class="hint" style="margin-top:6px;" data-i18n="backup_delete_all_confirm_label"></p>
+          </div>
         </div>
       </div>
 
@@ -211,6 +248,8 @@ if(ctx){
         companyPhone: contentEl.querySelector('#sPhone').value.trim(),
         companyEmail: contentEl.querySelector('#sEmail').value.trim(),
         companyAddress: contentEl.querySelector('#sAddress').value.trim(),
+        companyCr: contentEl.querySelector('#sCr').value.trim(),
+        companyTaxNumber: contentEl.querySelector('#sTaxNumber').value.trim(),
       });
       UI.mountFooter(document.querySelector('.main'));
       DB.logActivity('تم تحديث بيانات الشركة', 'Company info updated', 'settings');
@@ -379,6 +418,30 @@ if(ctx){
         document.head.appendChild(s);
       });
     }
+
+    /* ---------- danger zone ---------- */
+    contentEl.querySelector('#deleteCollectionBtn').addEventListener('click', ()=>{
+      const col = contentEl.querySelector('#deleteCollectionSelect').value;
+      UI.confirmAction(I18N.t('backup_delete_collection_confirm'), ()=>{
+        const data = DB.load();
+        data[col] = [];
+        DB.save(data);
+        DB.logActivity('تم مسح جميع بيانات جدول: ' + col, 'Cleared all data for table: ' + col, 'settings');
+        UI.toast(I18N.t('backup_delete_collection_done'), 'success');
+        if(col==='users'){ setTimeout(AUTH.logout, 1200); return; }
+        render();
+      });
+    });
+
+    contentEl.querySelector('#deleteAllBtn').addEventListener('click', ()=>{
+      const typed = contentEl.querySelector('#deleteAllConfirmInput').value.trim();
+      if(typed !== 'DELETE'){ UI.toast(I18N.t('backup_delete_all_confirm_mismatch'), 'error'); return; }
+      UI.confirmAction(I18N.t('backup_delete_all_desc'), ()=>{
+        DB.resetDemo();
+        UI.toast(I18N.t('backup_delete_all_done'), 'success');
+        setTimeout(()=>{ localStorage.removeItem('integriox_session'); window.location.href = 'index.html'; }, 1200);
+      });
+    });
 
     function renderUsers(){
       const users = DB.all('users');

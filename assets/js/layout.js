@@ -14,6 +14,7 @@ const LAYOUT = (function(){
     invoices: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 2h10v20l-2.5-1.5L12 22l-2.5-1.5L7 22z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>`,
     settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.9 7.9 0 0 0 0-3l2-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.5 2.5a7.6 7.6 0 0 0-2.6 1.5l-2.3-.9-2 3.4L4.6 10.5a7.9 7.9 0 0 0 0 3L2.6 15l2 3.4 2.3-.9c.8.7 1.7 1.2 2.6 1.5l.5 2.5h4l.5-2.5c1-.3 1.8-.8 2.6-1.5l2.3.9 2-3.4-2-1.5z"/></svg>`,
     users: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.7-6.2 5.5-6.2s5.5 2.6 5.5 6.2"/><circle cx="17" cy="7" r="2.4"/><path d="M15.2 13.3c2.6.5 4.3 2.7 4.3 6.7"/></svg>`,
+    complaint: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H8l-4 4z"/><path d="M12 8v4"/><circle cx="12" cy="15" r="0.5" fill="currentColor"/></svg>`,
     logout: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>`,
     bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>`,
     menu: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>`,
@@ -28,6 +29,7 @@ const LAYOUT = (function(){
     { key:'visit-request', href:'visit-request.html', icon:'request', label:'nav_visit_request', roles:['admin','client'] },
     { key:'payments', href:'payments.html', icon:'payments', label:'nav_payments', roles:['admin','client'] },
     { key:'invoices', href:'invoices.html', icon:'invoices', label:'nav_invoices', roles:['admin','client'] },
+    { key:'complaints', href:'complaints.html', icon:'complaint', label:'nav_complaints', roles:['admin','client','technician'] },
     { key:'settings', href:'settings.html', icon:'settings', label:'nav_settings', roles:['admin'] },
   ];
 
