@@ -9,9 +9,18 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719d">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719e">
 </head>
 <body>
+
+<!-- Shown briefly while we check whether an admin account already exists
+     (possibly by pulling from the connected Google Sheet first) -->
+<div class="boot-loading" id="bootLoading">
+  <div style="text-align:center;">
+    <div class="boot-spinner" style="margin:0 auto 12px;"></div>
+    <div class="text-muted" style="font-size:12.5px;" data-i18n="checking_setup"></div>
+  </div>
+</div>
 
 <!-- FIRST-RUN SETUP WIZARD (shown only when no admin account exists yet) -->
 <div class="setup-wrap hidden" id="setupWrap">
@@ -167,12 +176,12 @@
   </div>
 </div>
 
-<script src="assets/js/i18n.js?v=20260719d"></script>
-<script src="assets/js/lists.js?v=20260719d"></script>
-<script src="assets/js/config.js?v=20260719d"></script>
-<script src="assets/js/db.js?v=20260719d"></script>
-<script src="assets/js/auth.js?v=20260719d"></script>
-<script src="assets/js/ui.js?v=20260719d"></script>
+<script src="assets/js/i18n.js?v=20260719e"></script>
+<script src="assets/js/lists.js?v=20260719e"></script>
+<script src="assets/js/config.js?v=20260719e"></script>
+<script src="assets/js/db.js?v=20260719e"></script>
+<script src="assets/js/auth.js?v=20260719e"></script>
+<script src="assets/js/ui.js?v=20260719e"></script>
 <script>
   // if already logged in, go straight to dashboard
   if(AUTH.currentUser()) window.location.href = 'dashboard.html';
@@ -189,23 +198,39 @@
     if(!authWrap.classList.contains('hidden')){ UI.mountFooter(authWrap.querySelector('.auth-box')); UI.mountWhatsapp(); }
   }));
 
-  const needsSetup = !DB.all('users').some(u=>u.role==='admin');
+  const needsSetupLocal = !DB.all('users').some(u=>u.role==='admin');
   const setupWrap = document.getElementById('setupWrap');
   const authWrap = document.getElementById('authWrap');
+  const bootLoading = document.getElementById('bootLoading');
 
   let loginCaptcha, regCaptcha;
 
-  if(needsSetup){
-    setupWrap.classList.remove('hidden');
-    initSetupWizard();
-  } else {
-    authWrap.classList.remove('hidden');
-    UI.mountFooter(authWrap.querySelector('.auth-box'));
-    UI.mountWhatsapp();
-    loginCaptcha = UI.makeCaptcha(document.getElementById('loginCaptchaBox'), document.getElementById('loginCaptchaInput'));
-    regCaptcha = UI.makeCaptcha(document.getElementById('regCaptchaBox'), document.getElementById('regCaptchaInput'));
-    initAuthForms();
-  }
+  (async function boot(){
+    let needsSetup = needsSetupLocal;
+    // A fresh device/browser has no local admin yet, but the site might
+    // already be fully set up on the connected Google Sheet — pull it down
+    // first so we don't ask to set up the platform again on every device.
+    if(needsSetup && DB.getSettings().sheetUrl){
+      try{
+        await DB.pullFromSheet();
+        needsSetup = !DB.all('users').some(u=>u.role==='admin');
+      }catch(e){ /* couldn't reach the Sheet — fall back to local state */ }
+    }
+
+    bootLoading.classList.add('hidden');
+
+    if(needsSetup){
+      setupWrap.classList.remove('hidden');
+      initSetupWizard();
+    } else {
+      authWrap.classList.remove('hidden');
+      UI.mountFooter(authWrap.querySelector('.auth-box'));
+      UI.mountWhatsapp();
+      loginCaptcha = UI.makeCaptcha(document.getElementById('loginCaptchaBox'), document.getElementById('loginCaptchaInput'));
+      regCaptcha = UI.makeCaptcha(document.getElementById('regCaptchaBox'), document.getElementById('regCaptchaInput'));
+      initAuthForms();
+    }
+  })();
 
   function initSetupWizard(){
     const nodes = setupWrap.querySelectorAll('.node-step');

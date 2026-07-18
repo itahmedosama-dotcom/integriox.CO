@@ -373,6 +373,15 @@ html[dir="rtl"] .pwa-install-float{ padding:11px 14px 11px 16px; }
   .pwa-install-float{ padding:11px; bottom:80px; }
 }
 
+/* ---------- boot loading (index.html, while checking for an existing admin) ---------- */
+.boot-loading{ min-height:100vh; display:flex; align-items:center; justify-content:center; }
+.boot-spinner{
+  width:34px; height:34px; border-radius:50%;
+  border:3px solid var(--line); border-top-color:var(--blue);
+  animation:boot-spin 0.8s linear infinite;
+}
+@keyframes boot-spin{ to{ transform:rotate(360deg); } }
+
 /* ---------- captcha ---------- */
 .captcha-box{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
 .captcha-code{
