@@ -9,18 +9,18 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719b">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719"></script>
-<script src="assets/js/lists.js?v=20260719"></script>
-<script src="assets/js/config.js?v=20260719"></script>
-<script src="assets/js/db.js?v=20260719"></script>
-<script src="assets/js/auth.js?v=20260719"></script>
-<script src="assets/js/ui.js?v=20260719"></script>
-<script src="assets/js/layout.js?v=20260719"></script>
+<script src="assets/js/i18n.js?v=20260719b"></script>
+<script src="assets/js/lists.js?v=20260719b"></script>
+<script src="assets/js/config.js?v=20260719b"></script>
+<script src="assets/js/db.js?v=20260719b"></script>
+<script src="assets/js/auth.js?v=20260719b"></script>
+<script src="assets/js/ui.js?v=20260719b"></script>
+<script src="assets/js/layout.js?v=20260719b"></script>
 <script>
 const ctx = LAYOUT.render('clients');
 if(ctx){
@@ -69,7 +69,7 @@ if(ctx){
         const count = contracts.filter(k=>k.clientId===c.id).length;
         const nameAr = c.nameAr || c.name || '—';
         return `<tr>
-          <td class="cell-name"><div class="avatar">${UI.initials(nameAr)}</div>${nameAr}</td>
+          <td class="cell-name">${UI.avatarHtml(nameAr, c.logo)}${nameAr}</td>
           <td>${c.nameEn||'—'}</td>
           <td>${c.country||'—'}</td>
           <td>${c.phone||'—'}</td>
@@ -133,6 +133,16 @@ if(ctx){
           <div class="field"><label data-i18n="client_tax_number"></label><input type="text" id="fTax" value="${client?(client.taxNumber||''):''}"></div>
         </div>
         <div class="field">
+          <label data-i18n="client_logo"></label>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div id="logoPreviewWrap">${client && client.logo ? `<img src="${client.logo}" style="width:52px;height:52px;border-radius:10px;object-fit:cover;border:1px solid var(--line);">` : ''}</div>
+            <button type="button" class="btn btn-outline btn-sm" id="uploadLogoBtn" data-i18n="upload_logo"></button>
+            <button type="button" class="btn btn-danger btn-sm ${client && client.logo ? '' : 'hidden'}" id="removeLogoBtn" data-i18n="remove_logo"></button>
+          </div>
+          <input type="file" id="fLogo" accept="image/*" class="hidden">
+          <p class="hint" data-i18n="client_logo_hint" style="margin-top:4px;"></p>
+        </div>
+        <div class="field">
           <label data-i18n="client_branches"></label>
           <div id="branchRows"></div>
           <button type="button" class="btn btn-outline btn-sm" id="addBranchBtn" data-i18n="add_branch" style="margin-top:6px;"></button>
@@ -163,6 +173,23 @@ if(ctx){
     drawBranches();
     overlay.querySelector('#addBranchBtn').addEventListener('click', ()=>{ branches.push({ name:'', link:'' }); drawBranches(); });
 
+    let logoData = client ? (client.logo || '') : '';
+    const logoPreviewWrap = overlay.querySelector('#logoPreviewWrap');
+    const removeLogoBtn = overlay.querySelector('#removeLogoBtn');
+    overlay.querySelector('#uploadLogoBtn').addEventListener('click', ()=> overlay.querySelector('#fLogo').click());
+    overlay.querySelector('#fLogo').addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      logoData = await UI.resizeImageFile(file, 320);
+      logoPreviewWrap.innerHTML = `<img src="${logoData}" style="width:52px;height:52px;border-radius:10px;object-fit:cover;border:1px solid var(--line);">`;
+      removeLogoBtn.classList.remove('hidden');
+    });
+    removeLogoBtn.addEventListener('click', ()=>{
+      logoData = '';
+      logoPreviewWrap.innerHTML = '';
+      removeLogoBtn.classList.add('hidden');
+    });
+
     overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mSave').addEventListener('click', ()=>{
@@ -183,6 +210,7 @@ if(ctx){
         locationLink: overlay.querySelector('#fLocation').value.trim(),
         crNumber: overlay.querySelector('#fCr').value.trim(),
         taxNumber: overlay.querySelector('#fTax').value.trim(),
+        logo: logoData,
         branches: finalBranches,
       };
       if(!data.nameAr){ UI.toast(I18N.t('err_required'), 'error'); return; }

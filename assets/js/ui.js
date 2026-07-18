@@ -214,6 +214,37 @@ const UI = (function(){
     });
   }
 
+  // Downscales/compresses an image file to a small dataURL (default max
+  // 320px on the longest side, JPEG ~0.82 quality) so logos/photos don't
+  // bloat localStorage. Falls back to the raw file if resizing fails.
+  function resizeImageFile(file, maxDim){
+    maxDim = maxDim || 320;
+    return new Promise((resolve)=>{
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        img.onload = ()=>{
+          try{
+            let { width, height } = img;
+            if(width > maxDim || height > maxDim){
+              const scale = maxDim / Math.max(width, height);
+              width = Math.round(width * scale);
+              height = Math.round(height * scale);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.82));
+          }catch(e){ resolve(reader.result); }
+        };
+        img.onerror = ()=> resolve(reader.result);
+        img.src = reader.result;
+      };
+      reader.onerror = ()=> resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
   function fmtMoney(n){
     const v = Number(n||0).toLocaleString(I18N.getLang()==='ar' ? 'ar-EG' : 'en-US');
     return v + ' ' + I18N.t('currency');
@@ -227,6 +258,15 @@ const UI = (function(){
   }
   function initials(name){
     return (name||'?').trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  }
+  // Renders either the given logo/photo as a round image, or initials —
+  // used for the sidebar profile avatar and anywhere else a client logo
+  // should represent the user.
+  function avatarHtml(name, logoDataUrl, extraStyle){
+    if(logoDataUrl){
+      return `<div class="avatar" style="padding:0; overflow:hidden; ${extraStyle||''}"><img src="${logoDataUrl}" alt="${name||''}" style="width:100%;height:100%;object-fit:cover;"></div>`;
+    }
+    return `<div class="avatar" style="${extraStyle||''}">${initials(name)}</div>`;
   }
 
   /* ---------- lightweight signature pad (canvas) ---------- */
@@ -253,5 +293,5 @@ const UI = (function(){
     };
   }
 
-  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, fmtMoney, fmtDate, initials, SignaturePad };
+  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, resizeImageFile, fmtMoney, fmtDate, initials, avatarHtml, SignaturePad };
 })();

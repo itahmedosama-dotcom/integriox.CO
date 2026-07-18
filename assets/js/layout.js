@@ -37,6 +37,7 @@ const LAYOUT = (function(){
     const user = AUTH.requireAuth();
     if(!user) return null;
 
+    const clientRecord = user.role==='client' && user.clientId ? DB.get('clients', user.clientId) : null;
     const items = NAV.filter(n => n.roles.includes(user.role));
     const navHtml = items.map(n => `
       <a class="nav-link ${n.key===activeKey?'active':''}" href="${n.href}">
@@ -59,7 +60,7 @@ const LAYOUT = (function(){
         </nav>
         <div class="sidebar-foot">
           <div class="user-chip">
-            <div class="avatar">${UI.initials(user.name)}</div>
+            ${UI.avatarHtml(user.name, clientRecord && clientRecord.logo)}
             <div>
               <div class="u-name">${user.name}</div>
               <div class="u-role">${AUTH.roleLabel(user.role)}</div>

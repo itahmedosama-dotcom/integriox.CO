@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719b">
 </head>
 <body>
 
@@ -131,6 +131,14 @@
         <label data-i18n="company_name"></label>
         <input type="text" id="regCompany">
       </div>
+      <div class="field" id="regLogoWrap">
+        <label data-i18n="client_logo"></label>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div id="regLogoPreview"></div>
+          <button type="button" class="btn btn-outline btn-sm" id="regUploadLogoBtn" data-i18n="upload_logo"></button>
+        </div>
+        <input type="file" id="regLogo" accept="image/*" class="hidden">
+      </div>
       <div class="field-row">
         <div class="field">
           <label data-i18n="password"></label>
@@ -159,12 +167,12 @@
   </div>
 </div>
 
-<script src="assets/js/i18n.js?v=20260719"></script>
-<script src="assets/js/lists.js?v=20260719"></script>
-<script src="assets/js/config.js?v=20260719"></script>
-<script src="assets/js/db.js?v=20260719"></script>
-<script src="assets/js/auth.js?v=20260719"></script>
-<script src="assets/js/ui.js?v=20260719"></script>
+<script src="assets/js/i18n.js?v=20260719b"></script>
+<script src="assets/js/lists.js?v=20260719b"></script>
+<script src="assets/js/config.js?v=20260719b"></script>
+<script src="assets/js/db.js?v=20260719b"></script>
+<script src="assets/js/auth.js?v=20260719b"></script>
+<script src="assets/js/ui.js?v=20260719b"></script>
 <script>
   // if already logged in, go straight to dashboard
   if(AUTH.currentUser()) window.location.href = 'dashboard.html';
@@ -264,6 +272,10 @@
         group.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
         card.classList.add('active');
         card.querySelector('input').checked = true;
+        const regLogoWrap = document.getElementById('regLogoWrap');
+        if(regLogoWrap && group.contains(document.querySelector('input[name=regRole]'))){
+          regLogoWrap.style.display = card.querySelector('input').value==='client' ? '' : 'none';
+        }
       });
     });
 
@@ -282,6 +294,18 @@
       if(!res.ok){ showMsg(I18N.t(res.error), 'error'); loginCaptcha.refresh(); document.getElementById('loginCaptchaInput').value=''; return; }
       window.location.href = 'dashboard.html';
     });
+
+    let regLogoData = '';
+    const regUploadLogoBtn = document.getElementById('regUploadLogoBtn');
+    if(regUploadLogoBtn){
+      regUploadLogoBtn.addEventListener('click', ()=> document.getElementById('regLogo').click());
+      document.getElementById('regLogo').addEventListener('change', async (e)=>{
+        const file = e.target.files[0];
+        if(!file) return;
+        regLogoData = await UI.resizeImageFile(file, 320);
+        document.getElementById('regLogoPreview').innerHTML = `<img src="${regLogoData}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid var(--line);">`;
+      });
+    }
 
     registerForm.addEventListener('submit', (e)=>{
       e.preventDefault();
@@ -304,11 +328,13 @@
       if(!name || !email || !phone || !password){ showMsg(I18N.t('err_required'), 'error'); return; }
       if(password !== password2){ showMsg(I18N.t('err_pass_match'), 'error'); return; }
 
-      const res = AUTH.register({ name, email, phone, username, company, password, role });
+      const res = AUTH.register({ name, email, phone, username, company, password, role, logo: regLogoData });
       if(!res.ok){ showMsg(I18N.t(res.error), 'error'); regCaptcha.refresh(); document.getElementById('regCaptchaInput').value=''; return; }
       showMsg(I18N.t('success_register'), 'success');
       UI.toast(I18N.t('success_register'), 'success');
       registerForm.reset();
+      regLogoData = '';
+      document.getElementById('regLogoPreview').innerHTML = '';
       regCaptcha.refresh();
       setTimeout(()=>{ tabs[0].click(); }, 1400);
     });
