@@ -20,3 +20,10 @@ window.INTEGRIOX_CONFIG = {
   sheetUrl: "https://script.google.com/macros/s/AKfycbw9VolKZEUii0rSdU6Dei9gr-3Dbtf7ld7t4vyMOzUtqyh1mNeOgQMIxCsgNADHgO4t/exec",
   apiKey: "INX-2026SecretKey123"
 };
+
+// Must match the BACKEND_VERSION constant near the top of apps-script/Code.gs.
+// Settings → الربط والتكامل → "اختبار الاتصال" compares the two and warns
+// if the deployed backend is out of date (most common cause of "my data
+// isn't syncing / columns look wrong" reports — Code.gs was updated but
+// never redeployed, or redeployed without re-running setupSheet).
+const EXPECTED_BACKEND_VERSION = '2026-07-20';

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Statement</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B2545">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719j">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js?v=20260719j"></script>
+<script src="assets/js/lists.js?v=20260719j"></script>
+<script src="assets/js/config.js?v=20260719j"></script>
+<script src="assets/js/db.js?v=20260719j"></script>
+<script src="assets/js/billing.js?v=20260719j"></script>
+<script src="assets/js/auth.js?v=20260719j"></script>
+<script src="assets/js/ui.js?v=20260719j"></script>
+<script src="assets/js/layout.js?v=20260719j"></script>
+<script>
+const ctx = LAYOUT.render('statement');
+if(ctx){
+  const { user, contentEl } = ctx;
+  const isAdmin = user.role === 'admin';
+  const settings = DB.getSettings();
+
+  function render(){
+    const clients = DB.all('clients');
+
+    contentEl.innerHTML = `
+      <div class="filters-bar no-print">
+        ${isAdmin ? `
+        <select id="clientSelect">
+          <option value="">${I18N.t('select_client')}</option>
+          ${clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
+        </select>` : ''}
+        <div class="field" style="margin:0;"><label style="font-size:11px;" data-i18n="from_date"></label><input type="date" id="fFrom"></div>
+        <div class="field" style="margin:0;"><label style="font-size:11px;" data-i18n="to_date"></label><input type="date" id="fTo"></div>
+        <button type="button" class="btn btn-accent" id="printBtn">🖨️ <span data-i18n="dashboard_print"></span></button>
+      </div>
+      <div id="statementArea"></div>
+    `;
+    I18N.apply(contentEl);
+
+    const clientSelect = contentEl.querySelector('#clientSelect');
+    const fromEl = contentEl.querySelector('#fFrom');
+    const toEl = contentEl.querySelector('#fTo');
+    contentEl.querySelector('#printBtn').addEventListener('click', ()=>window.print());
+
+    function draw(){
+      const clientId = isAdmin ? (clientSelect ? clientSelect.value : '') : user.clientId;
+      const area = contentEl.querySelector('#statementArea');
+      if(!clientId){
+        area.innerHTML = `<div class="empty-state">${I18N.t('select_client_hint')}</div>`;
+        return;
+      }
+      const client = clients.find(c=>c.id===clientId) || DB.get('clients', clientId);
+      const from = fromEl.value, to = toEl.value;
+
+      let invoices = DB.all('invoices').filter(i=>i.clientId===clientId);
+      let payments = DB.all('payments').filter(p=>p.clientId===clientId && p.status==='confirmed');
+      if(from){ invoices = invoices.filter(i=>i.date>=from); payments = payments.filter(p=>p.date>=from); }
+      if(to){ invoices = invoices.filter(i=>i.date<=to); payments = payments.filter(p=>p.date<=to); }
+
+      const rows = [
+        ...invoices.map(i=>({ date:i.date, type:'invoice', ref:i.id, desc:i.description||I18N.t('invoices'), debit:Number(i.amount||0), credit:0 })),
+        ...payments.map(p=>({ date:p.date, type:'payment', ref:p.id, desc:I18N.t('payment_amount'), debit:0, credit:Number(p.amount||0) })),
+      ].sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+
+      let balance = 0;
+      const rowsHtml = rows.map(r=>{
+        balance += r.debit - r.credit;
+        return `<tr>
+          <td>${UI.fmtDate(r.date)}</td>
+          <td>${r.ref}</td>
+          <td>${r.desc}</td>
+          <td>${r.debit ? UI.fmtMoney(r.debit) : '—'}</td>
+          <td>${r.credit ? UI.fmtMoney(r.credit) : '—'}</td>
+          <td><strong>${UI.fmtMoney(balance)}</strong></td>
+        </tr>`;
+      }).join('');
+
+      const totalInvoiced = invoices.reduce((s,i)=>s+Number(i.amount||0),0);
+      const totalPaid = payments.reduce((s,p)=>s+Number(p.amount||0),0);
+      const totalDue = totalInvoiced - totalPaid;
+
+      area.innerHTML = `
+        <div class="card" id="printArea">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:26px; padding-bottom:20px; border-bottom:2px solid var(--navy);">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <img src="assets/images/logo.png" style="width:52px;height:52px;">
+              <div>
+                <div style="font-weight:800; font-size:18px; color:var(--navy);">${settings.companyName}</div>
+                <div class="text-muted" style="font-size:12px;">${settings.companyAddress}</div>
+              </div>
+            </div>
+            <div style="text-align:end;">
+              <div style="font-weight:800; font-size:16px;" data-i18n="statement_title"></div>
+              <div class="text-muted" style="font-size:12px;">${UI.fmtDate(DB.todayISO())}</div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:22px;">
+            ${client && client.logo ? `<img src="${client.logo}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">` : ''}
+            <div style="font-size:13.5px; line-height:2;">
+              <strong>${client?client.name:'—'}</strong><br>${client?client.phone:''}<br>${client?client.address:''}
+            </div>
+          </div>
+
+          <div class="grid grid-3" style="margin-bottom:22px;">
+            <div class="stat-card"><div class="stat-value" style="font-size:18px;">${UI.fmtMoney(totalInvoiced)}</div><div class="stat-label" data-i18n="statement_total_invoiced"></div></div>
+            <div class="stat-card"><div class="stat-value" style="font-size:18px;">${UI.fmtMoney(totalPaid)}</div><div class="stat-label" data-i18n="statement_total_paid"></div></div>
+            <div class="stat-card"><div class="stat-value" style="font-size:18px; color:${totalDue>0?'var(--danger)':'var(--success)'};">${UI.fmtMoney(totalDue)}</div><div class="stat-label" data-i18n="statement_balance_due"></div></div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th data-i18n="statement_date"></th><th data-i18n="statement_ref"></th><th data-i18n="statement_desc"></th>
+                <th data-i18n="statement_debit"></th><th data-i18n="statement_credit"></th><th data-i18n="statement_balance"></th>
+              </tr></thead>
+              <tbody>${rowsHtml || `<tr><td colspan="6" style="text-align:center; color:var(--ink-mute);">${I18N.t('no_data')}</td></tr>`}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      I18N.apply(area);
+    }
+
+    if(clientSelect) clientSelect.addEventListener('change', draw);
+    fromEl.addEventListener('change', draw);
+    toEl.addEventListener('change', draw);
+    draw();
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>

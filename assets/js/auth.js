@@ -76,9 +76,12 @@ const AUTH = (function(){
     const u = currentUser();
     if(!u){ window.location.href = 'index.html'; return null; }
     checkSuspensions();
+    // Re-check status from fresh data when we can, but never force a
+    // logout just because the fresh lookup came back empty (e.g. a
+    // transient sync/id mismatch) — only a CONFIRMED suspension logs out.
     const fresh = DB.get('users', u.id);
-    if(!fresh || fresh.status === 'suspended'){ logout(); return null; }
-    return fresh;
+    if(fresh && fresh.status === 'suspended'){ logout(); return null; }
+    return fresh || u;
   }
 
   function roleLabel(role){

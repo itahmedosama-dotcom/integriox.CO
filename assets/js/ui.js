@@ -156,7 +156,7 @@ const UI = (function(){
         </button>`;
       container.querySelector('.captcha-refresh').addEventListener('click', gen);
       container.querySelector('.captcha-copy').addEventListener('click', async ()=>{
-        try{ await navigator.clipboard.writeText(code); toast(I18N.t('captcha_copied'), 'success'); }catch(e){}
+        try{ await navigator.clipboard.writeText(code); }catch(e){}
         if(inputEl){ inputEl.value = code; inputEl.focus(); }
       });
     }

@@ -9,18 +9,18 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719i">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719j">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719i"></script>
-<script src="assets/js/lists.js?v=20260719i"></script>
-<script src="assets/js/config.js?v=20260719i"></script>
-<script src="assets/js/db.js?v=20260719i"></script>
-<script src="assets/js/auth.js?v=20260719i"></script>
-<script src="assets/js/ui.js?v=20260719i"></script>
-<script src="assets/js/layout.js?v=20260719i"></script>
+<script src="assets/js/i18n.js?v=20260719j"></script>
+<script src="assets/js/lists.js?v=20260719j"></script>
+<script src="assets/js/config.js?v=20260719j"></script>
+<script src="assets/js/db.js?v=20260719j"></script>
+<script src="assets/js/auth.js?v=20260719j"></script>
+<script src="assets/js/ui.js?v=20260719j"></script>
+<script src="assets/js/layout.js?v=20260719j"></script>
 <script>
 const ctx = LAYOUT.render('settings');
 if(ctx){
@@ -256,7 +256,10 @@ if(ctx){
           <div class="field" style="margin:0;"><label style="font-size:11px;" data-i18n="activity_to"></label><input type="date" id="logToDate"></div>
         </div>
         <div class="card">
-          <div class="card-header"><h3 class="card-title" data-i18n="activity_log"></h3></div>
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 class="card-title" data-i18n="activity_log"></h3>
+            <button type="button" class="btn btn-sm btn-danger" id="clearActivityBtn" data-i18n="clear_all_activity"></button>
+          </div>
           <div id="logBody"></div>
         </div>
       </div>
@@ -391,7 +394,11 @@ if(ctx){
         const res = await fetch(url + (url.includes('?')?'&':'?') + 'action=ping');
         const json = await res.json();
         if(json && json.ok){
-          UI.toast(I18N.t('integration_test_ok'), 'success');
+          if(json.version && json.version !== EXPECTED_BACKEND_VERSION){
+            UI.toast(I18N.t('integration_backend_version_mismatch') + ` (${json.version} → ${EXPECTED_BACKEND_VERSION})`, 'error');
+          } else {
+            UI.toast(I18N.t('integration_test_ok'), 'success');
+          }
         } else if(json && json.error === 'unknown action'){
           // the URL/deployment works, but the deployed Code.gs predates the
           // `ping` action added in this update — most common real cause of
@@ -523,21 +530,28 @@ if(ctx){
           const matchesRole = !rf || u.role===rf;
           return matchesText && matchesRole;
         });
+        const emailCounts = {};
+        users.forEach(u=>{ const e=(u.email||'').toLowerCase(); if(e) emailCounts[e]=(emailCounts[e]||0)+1; });
         contentEl.querySelector('#userEmptyState').classList.toggle('hidden', list.length>0);
-        rowsEl.innerHTML = list.map(u=>`<tr>
+        rowsEl.innerHTML = list.map(u=>{
+          const isDup = emailCounts[(u.email||'').toLowerCase()] > 1;
+          return `<tr>
           <td class="cell-name"><div class="avatar">${UI.initials(u.name)}</div>${u.name}</td>
           <td>${u.username||'—'}</td>
-          <td>${u.email}</td>
+          <td>${u.email} ${isDup ? `<span class="badge badge-warning" data-i18n="duplicate_account"></span>` : ''}</td>
           <td>${u.phone||'—'}</td>
           <td>${AUTH.roleLabel(u.role)}</td>
           <td><span class="badge ${statusBadge[u.status]||'badge-mute'}" data-i18n="status_${u.status==='approved'?'approved':(u.status==='suspended'?'suspended':'pending')}"></span></td>
           <td class="row-actions">
             ${u.status==='pending' ? `<button type="button" class="btn btn-sm btn-accent" data-approve="${u.id}" data-i18n="approve"></button>` : ''}
+            ${isDup ? `<button type="button" class="btn btn-sm btn-outline" data-merge="${u.id}" data-i18n="merge_account"></button>` : ''}
             <button type="button" class="btn btn-sm btn-outline" data-edit="${u.id}" data-i18n="edit"></button>
             ${u.id!==me.id ? `<button type="button" class="btn btn-sm btn-danger" data-del="${u.id}" data-i18n="delete"></button>` : ''}
           </td>
-        </tr>`).join('');
+        </tr>`;
+        }).join('');
         I18N.apply(rowsEl);
+        rowsEl.querySelectorAll('[data-merge]').forEach(b=>b.addEventListener('click', ()=>openMergeModal(b.dataset.merge)));
         rowsEl.querySelectorAll('[data-approve]').forEach(b=>b.addEventListener('click', ()=>{
           const target = DB.get('users', b.dataset.approve);
           DB.update('users', b.dataset.approve, { status:'approved' });
@@ -561,6 +575,87 @@ if(ctx){
       contentEl.querySelector('#userRoleFilter').addEventListener('change', draw);
       contentEl.querySelector('#addUserBtn').addEventListener('click', ()=>openUserForm(null));
       draw();
+    }
+
+    function openMergeModal(userId){
+      const target = DB.get('users', userId);
+      if(!target) return;
+      const dups = DB.all('users').filter(u=>(u.email||'').toLowerCase()===(target.email||'').toLowerCase());
+      if(dups.length < 2) return;
+      const overlay = UI.openModal(`
+        <div class="modal-head"><h3 data-i18n="merge_accounts_title"></h3><button type="button" class="close-x" id="mgClose">&times;</button></div>
+        <div class="modal-body">
+          <p class="hint" style="margin-bottom:14px;" data-i18n="merge_accounts_hint"></p>
+          ${dups.map((u,i)=>`
+            <label class="radio-card ${i===0?'active':''}" style="display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; padding:12px;">
+              <input type="radio" name="mgPrimary" value="${u.id}" ${i===0?'checked':''} style="margin-top:3px;">
+              <span>
+                <strong>${u.name}</strong> — ${AUTH.roleLabel(u.role)}<br>
+                <span class="text-muted" style="font-size:12px;">${u.username?('@'+u.username+' · '):''}${u.status} · ${u.id}</span>
+              </span>
+            </label>`).join('')}
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline" id="mgCancel" data-i18n="cancel"></button>
+          <button type="button" class="btn btn-primary" id="mgConfirm" data-i18n="merge_accounts_confirm"></button>
+        </div>
+      `);
+      I18N.apply(overlay);
+      overlay.querySelectorAll('.radio-card').forEach(card=>{
+        card.addEventListener('click', ()=>{
+          overlay.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
+          card.classList.add('active');
+          card.querySelector('input').checked = true;
+        });
+      });
+      overlay.querySelector('#mgClose').addEventListener('click', UI.closeModal);
+      overlay.querySelector('#mgCancel').addEventListener('click', UI.closeModal);
+      overlay.querySelector('#mgConfirm').addEventListener('click', ()=>{
+        const primaryId = overlay.querySelector('input[name=mgPrimary]:checked').value;
+        UI.confirmAction(I18N.t('merge_accounts_final_confirm'), ()=>{
+          mergeDuplicateAccounts(dups, primaryId);
+          UI.closeModal();
+          UI.toast(I18N.t('merge_accounts_done'), 'success');
+          render();
+        });
+      });
+    }
+
+    // Keeps `primaryId`'s user account, folds every other duplicate
+    // (same email) into it, and re-points every contract/visit/payment/
+    // invoice/complaint that referenced a duplicate's clientId/techId over
+    // to the primary's — so nothing ends up orphaned.
+    function mergeDuplicateAccounts(dups, primaryId){
+      let primary = DB.get('users', primaryId);
+      const others = dups.filter(u=>u.id!==primaryId);
+      others.forEach(other=>{
+        if(other.clientId && other.clientId !== primary.clientId){
+          if(!primary.clientId){
+            DB.update('users', primary.id, { clientId: other.clientId });
+            primary = DB.get('users', primary.id);
+          } else {
+            ['contracts','visits','payments','invoices','complaints'].forEach(col=>{
+              DB.all(col).filter(r=>r.clientId===other.clientId).forEach(r=>{
+                DB.update(col, r.id, { clientId: primary.clientId });
+              });
+            });
+            DB.remove('clients', other.clientId);
+          }
+        }
+        if(other.techId && other.techId !== primary.techId){
+          if(!primary.techId){
+            DB.update('users', primary.id, { techId: other.techId });
+            primary = DB.get('users', primary.id);
+          } else {
+            DB.all('visits').filter(v=>v.techId===other.techId).forEach(v=>{
+              DB.update('visits', v.id, { techId: primary.techId });
+            });
+            DB.remove('technicians', other.techId);
+          }
+        }
+        DB.remove('users', other.id);
+      });
+      DB.logActivity('تم دمج حسابات مكررة في حساب ' + primary.name, 'Merged duplicate accounts into ' + primary.name, 'user');
     }
 
     function openUserForm(u){
@@ -731,6 +826,16 @@ if(ctx){
       userSel.addEventListener('change', draw);
       fromEl.addEventListener('change', draw);
       toEl.addEventListener('change', draw);
+      contentEl.querySelector('#clearActivityBtn').addEventListener('click', ()=>{
+        UI.confirmAction(I18N.t('confirm_clear_activity'), ()=>{
+          const data = DB.load();
+          data.activity = [];
+          DB.save(data);
+          DB.logActivity('تم مسح سجل الأنشطة بالكامل', 'Activity log fully cleared', 'settings');
+          UI.toast(I18N.t('deleted_ok'), 'success');
+          renderLog();
+        });
+      });
       draw();
     }
 
