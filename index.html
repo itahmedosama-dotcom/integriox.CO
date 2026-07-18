@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B2545">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<!-- FIRST-RUN SETUP WIZARD (shown only when no admin account exists yet) -->
+<div class="setup-wrap hidden" id="setupWrap">
+  <div class="setup-box">
+    <div class="auth-logo">
+      <img src="assets/images/logo.png" alt="Integriox">
+      <div class="name" data-i18n="setup_title"></div>
+    </div>
+
+    <div class="node-track" style="margin-bottom:26px;">
+      <div class="node-step current" data-step-node="1"><div class="node-dot"></div><div class="node-label" data-i18n="setup_step_sheet"></div></div>
+      <div class="node-step" data-step-node="2"><div class="node-dot"></div><div class="node-label" data-i18n="setup_step_admin"></div></div>
+    </div>
+
+    <div id="setupMsg" class="form-msg"></div>
+
+    <!-- STEP 1: Google Sheet + API key -->
+    <div class="setup-step active" data-step="1">
+      <p class="hint" data-i18n="setup_sheet_intro" style="margin-bottom:16px;"></p>
+      <div class="field"><label data-i18n="sheet_url"></label><input type="text" id="wSheetUrl" placeholder="https://script.google.com/macros/s/XXXXX/exec"></div>
+      <div class="field"><label data-i18n="api_key"></label><input type="password" id="wApiKey" placeholder="••••••••"></div>
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button type="button" class="btn btn-outline w-full" id="wSkip" data-i18n="setup_skip"></button>
+        <button type="button" class="btn btn-primary w-full" id="wNext" data-i18n="setup_next"></button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Admin account -->
+    <div class="setup-step" data-step="2">
+      <p class="hint" data-i18n="setup_admin_intro" style="margin-bottom:16px;"></p>
+      <div class="field"><label data-i18n="full_name"></label><input type="text" id="wName"></div>
+      <div class="field-row">
+        <div class="field"><label data-i18n="email"></label><input type="email" id="wEmail"></div>
+        <div class="field"><label data-i18n="phone"></label><input type="tel" id="wPhone"></div>
+      </div>
+      <div class="field"><label data-i18n="username_optional"></label><input type="text" id="wUsername"></div>
+      <div class="field-row">
+        <div class="field"><label data-i18n="password"></label><input type="password" id="wPassword"></div>
+        <div class="field"><label data-i18n="confirm_password"></label><input type="password" id="wPassword2"></div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button type="button" class="btn btn-outline w-full" id="wBack" data-i18n="setup_back"></button>
+        <button type="button" class="btn btn-primary w-full" id="wFinish" data-i18n="setup_finish"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN / REGISTER -->
+<div class="auth-wrap hidden" id="authWrap">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <img src="assets/images/logo.png" alt="Integriox">
+      <div class="name" data-i18n="app_name"></div>
+      <div class="tag" data-i18n="app_tag"></div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="active" data-tab="login" data-i18n="tab_login"></button>
+      <button data-tab="register" data-i18n="tab_register"></button>
+    </div>
+
+    <div id="formMsg" class="form-msg"></div>
+
+    <!-- LOGIN FORM -->
+    <form id="loginForm">
+      <div class="field">
+        <label data-i18n="login_identifier"></label>
+        <input type="text" id="loginEmail" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label data-i18n="password"></label>
+        <input type="password" id="loginPassword" required>
+      </div>
+      <div class="field">
+        <label data-i18n="captcha_label"></label>
+        <div class="captcha-box" id="loginCaptchaBox"></div>
+        <input type="text" id="loginCaptchaInput" data-i18n-ph="captcha_label" autocomplete="off" required>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit" data-i18n="btn_login"></button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="registerForm" class="hidden">
+      <div class="field">
+        <label data-i18n="full_name"></label>
+        <input type="text" id="regName" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label data-i18n="email"></label>
+          <input type="email" id="regEmail" required>
+        </div>
+        <div class="field">
+          <label data-i18n="phone"></label>
+          <input type="tel" id="regPhone" required>
+        </div>
+      </div>
+      <div class="field">
+        <label data-i18n="username_optional"></label>
+        <input type="text" id="regUsername" autocomplete="username">
+      </div>
+      <div class="field">
+        <label data-i18n="account_type"></label>
+        <div class="radio-group">
+          <label class="radio-card active">
+            <input type="radio" name="regRole" value="client" checked>
+            <span data-i18n="role_client"></span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="regRole" value="technician">
+            <span data-i18n="role_technician"></span>
+          </label>
+        </div>
+      </div>
+      <div class="field">
+        <label data-i18n="company_name"></label>
+        <input type="text" id="regCompany">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label data-i18n="password"></label>
+          <input type="password" id="regPassword" required>
+        </div>
+        <div class="field">
+          <label data-i18n="confirm_password"></label>
+          <input type="password" id="regPassword2" required>
+        </div>
+      </div>
+      <div class="field">
+        <label data-i18n="captcha_label"></label>
+        <div class="captcha-box" id="regCaptchaBox"></div>
+        <input type="text" id="regCaptchaInput" data-i18n-ph="captcha_label" autocomplete="off" required>
+      </div>
+      <p class="hint" data-i18n="register_note" style="margin-bottom:14px;"></p>
+      <button class="btn btn-primary btn-block" type="submit" data-i18n="btn_register"></button>
+    </form>
+  </div>
+</div>
+
+<div style="position:fixed; top:16px; inset-inline-end:16px;">
+  <div class="lang-switch" style="background:#fff;">
+    <button data-lang="ar">AR</button>
+    <button data-lang="en">EN</button>
+  </div>
+</div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/lists.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+  // if already logged in, go straight to dashboard
+  if(AUTH.currentUser()) window.location.href = 'dashboard.html';
+
+  I18N.apply();
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+  const langBtns = document.querySelectorAll('.lang-switch button');
+  function syncLang(){ langBtns.forEach(b=>b.classList.toggle('active', b.dataset.lang===I18N.getLang())); }
+  syncLang();
+  langBtns.forEach(b=>b.addEventListener('click', ()=>{
+    I18N.setLang(b.dataset.lang); syncLang();
+    if(loginCaptcha) loginCaptcha = UI.makeCaptcha(document.getElementById('loginCaptchaBox'), document.getElementById('loginCaptchaInput'));
+    if(regCaptcha) regCaptcha = UI.makeCaptcha(document.getElementById('regCaptchaBox'), document.getElementById('regCaptchaInput'));
+    if(!authWrap.classList.contains('hidden')){ UI.mountFooter(authWrap.querySelector('.auth-box')); UI.mountWhatsapp(); }
+  }));
+
+  const needsSetup = !DB.all('users').some(u=>u.role==='admin');
+  const setupWrap = document.getElementById('setupWrap');
+  const authWrap = document.getElementById('authWrap');
+
+  let loginCaptcha, regCaptcha;
+
+  if(needsSetup){
+    setupWrap.classList.remove('hidden');
+    initSetupWizard();
+  } else {
+    authWrap.classList.remove('hidden');
+    UI.mountFooter(authWrap.querySelector('.auth-box'));
+    UI.mountWhatsapp();
+    loginCaptcha = UI.makeCaptcha(document.getElementById('loginCaptchaBox'), document.getElementById('loginCaptchaInput'));
+    regCaptcha = UI.makeCaptcha(document.getElementById('regCaptchaBox'), document.getElementById('regCaptchaInput'));
+    initAuthForms();
+  }
+
+  function initSetupWizard(){
+    const nodes = setupWrap.querySelectorAll('.node-step');
+    const steps = setupWrap.querySelectorAll('.setup-step');
+    const wMsg = document.getElementById('setupMsg');
+    function showMsg(text, type){ wMsg.textContent = text; wMsg.className = 'form-msg show ' + type; }
+    function goStep(n){
+      steps.forEach(s=> s.classList.toggle('active', s.dataset.step===String(n)));
+      nodes.forEach(nd=>{
+        const i = Number(nd.dataset.stepNode);
+        nd.classList.toggle('done', i < n);
+        nd.classList.toggle('current', i === n);
+      });
+      wMsg.className = 'form-msg';
+    }
+    document.getElementById('wNext').addEventListener('click', ()=>{
+      const sheetUrl = document.getElementById('wSheetUrl').value.trim();
+      const apiKey = document.getElementById('wApiKey').value.trim();
+      DB.saveSettings({ sheetUrl, apiKeyEnc: apiKey ? DB.encodeSecret(apiKey) : '' });
+      goStep(2);
+    });
+    document.getElementById('wSkip').addEventListener('click', ()=> goStep(2));
+    document.getElementById('wBack').addEventListener('click', ()=> goStep(1));
+    document.getElementById('wFinish').addEventListener('click', ()=>{
+      const name = document.getElementById('wName').value.trim();
+      const email = document.getElementById('wEmail').value.trim();
+      const phone = document.getElementById('wPhone').value.trim();
+      const username = document.getElementById('wUsername').value.trim();
+      const password = document.getElementById('wPassword').value;
+      const password2 = document.getElementById('wPassword2').value;
+      if(!name || !email || !password){ showMsg(I18N.t('err_required'), 'error'); return; }
+      if(password !== password2){ showMsg(I18N.t('err_pass_match'), 'error'); return; }
+      DB.insert('users', { id: DB.uid('u'), name, email, username, phone, password, role:'admin', status:'approved' });
+      DB.saveSettings({ setupDone: true });
+      UI.toast(I18N.t('setup_done_msg'), 'success');
+      const res = AUTH.login(email, password);
+      setTimeout(()=>{ if(res.ok) window.location.href = 'dashboard.html'; else window.location.reload(); }, 1200);
+    });
+  }
+
+  function initAuthForms(){
+    // tabs
+    const tabs = document.querySelectorAll('.auth-tabs button');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const msg = document.getElementById('formMsg');
+    function showMsg(text, type){ msg.textContent = text; msg.className = 'form-msg show ' + type; }
+    function clearMsg(){ msg.className = 'form-msg'; }
+
+    tabs.forEach(tab=>{
+      tab.addEventListener('click', ()=>{
+        tabs.forEach(t=>t.classList.remove('active'));
+        tab.classList.add('active');
+        clearMsg();
+        if(tab.dataset.tab === 'login'){ loginForm.classList.remove('hidden'); registerForm.classList.add('hidden'); }
+        else { registerForm.classList.remove('hidden'); loginForm.classList.add('hidden'); }
+      });
+    });
+
+    // radio cards
+    document.querySelectorAll('.radio-card').forEach(card=>{
+      card.addEventListener('click', ()=>{
+        const group = card.closest('.radio-group');
+        group.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
+        card.classList.add('active');
+        card.querySelector('input').checked = true;
+      });
+    });
+
+    loginForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      clearMsg();
+      if(!loginCaptcha.verify(document.getElementById('loginCaptchaInput').value)){
+        showMsg(I18N.t('err_captcha'), 'error');
+        loginCaptcha.refresh();
+        document.getElementById('loginCaptchaInput').value = '';
+        return;
+      }
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const res = AUTH.login(email, password);
+      if(!res.ok){ showMsg(I18N.t(res.error), 'error'); loginCaptcha.refresh(); document.getElementById('loginCaptchaInput').value=''; return; }
+      window.location.href = 'dashboard.html';
+    });
+
+    registerForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      clearMsg();
+      if(!regCaptcha.verify(document.getElementById('regCaptchaInput').value)){
+        showMsg(I18N.t('err_captcha'), 'error');
+        regCaptcha.refresh();
+        document.getElementById('regCaptchaInput').value = '';
+        return;
+      }
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      const username = document.getElementById('regUsername').value.trim();
+      const company = document.getElementById('regCompany').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const password2 = document.getElementById('regPassword2').value;
+      const role = document.querySelector('input[name=regRole]:checked').value;
+
+      if(!name || !email || !phone || !password){ showMsg(I18N.t('err_required'), 'error'); return; }
+      if(password !== password2){ showMsg(I18N.t('err_pass_match'), 'error'); return; }
+
+      const res = AUTH.register({ name, email, phone, username, company, password, role });
+      if(!res.ok){ showMsg(I18N.t(res.error), 'error'); regCaptcha.refresh(); document.getElementById('regCaptchaInput').value=''; return; }
+      showMsg(I18N.t('success_register'), 'success');
+      UI.toast(I18N.t('success_register'), 'success');
+      registerForm.reset();
+      regCaptcha.refresh();
+      setTimeout(()=>{ tabs[0].click(); }, 1400);
+    });
+  }
+</script>
+</body>
+</html>

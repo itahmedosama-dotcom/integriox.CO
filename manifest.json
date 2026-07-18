@@ -1,0 +1,17 @@
+{
+  "name": "Integriox — منصة عقود الصيانة",
+  "short_name": "Integriox",
+  "description": "منصة إدارة عقود الصيانة والعملاء والفنيين والزيارات والمدفوعات",
+  "start_url": "./dashboard.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F4F7FB",
+  "theme_color": "#0B2545",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "assets/images/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/images/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

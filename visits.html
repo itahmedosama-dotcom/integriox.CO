@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Visits</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B2545">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/lists.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+const ctx = LAYOUT.render('visits');
+if(ctx){
+  const { user, contentEl } = ctx;
+  const isAdmin = user.role === 'admin';
+  const isTech = user.role === 'technician';
+  const isClient = user.role === 'client';
+
+  const statusBadge = { scheduled:'badge-info', ongoing:'badge-warning', done:'badge-success', cancelled:'badge-danger' };
+  const typeLabelMap = { periodic:'issue_periodic', fault:'issue_fault', urgent:'issue_urgent' };
+
+  function render(){
+    let visits = DB.all('visits');
+    if(isTech){
+      if(!user.canViewAllVisits){
+        visits = visits.filter(v=>v.techId===user.techId);
+      }
+      // technicians with the permission see every visit already (all techs +
+      // unassigned/new requests), so no extra filtering needed in that case.
+    }
+    if(isClient) visits = visits.filter(v=>v.clientId===user.clientId);
+    const clients = DB.all('clients');
+    const techs = DB.all('technicians');
+
+    contentEl.innerHTML = `
+      <div class="filters-bar">
+        <select id="statusFilter">
+          <option value="" data-i18n="all"></option>
+          <option value="scheduled" data-i18n="visit_scheduled"></option>
+          <option value="ongoing" data-i18n="visit_ongoing"></option>
+          <option value="done" data-i18n="visit_done"></option>
+          <option value="cancelled" data-i18n="visit_cancelled"></option>
+        </select>
+        ${isAdmin ? `<button class="btn btn-primary" id="addBtn" data-i18n="add_visit"></button>` : ''}
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="visit_date"></th><th data-i18n="contract_client"></th><th data-i18n="visit_technician"></th>
+              <th data-i18n="visit_type"></th><th data-i18n="visit_status"></th><th data-i18n="details"></th><th data-i18n="actions"></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state hidden"><div data-i18n="no_data"></div></div>
+      </div>
+    `;
+    I18N.apply(contentEl);
+    const rowsEl = contentEl.querySelector('#rows');
+
+    function draw(){
+      const st = contentEl.querySelector('#statusFilter').value;
+      const list = visits.filter(v=> !st || v.status===st).sort((a,b)=> b.date.localeCompare(a.date));
+      contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
+      rowsEl.innerHTML = list.map(v=>{
+        const client = clients.find(c=>c.id===v.clientId);
+        const tech = techs.find(t=>t.id===v.techId);
+        return `<tr>
+          <td>${UI.fmtDate(v.date)} <span class="text-muted">${v.time||''}</span></td>
+          <td>${client?client.name:'—'}</td>
+          <td>${tech?tech.name:`<span class="text-muted">—</span>`}</td>
+          <td><span data-i18n="${typeLabelMap[v.type]||'issue_periodic'}"></span></td>
+          <td><span class="badge ${statusBadge[v.status]}" data-i18n="visit_${v.status}"></span></td>
+          <td class="text-muted" style="max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${v.description||'—'}</td>
+          <td class="row-actions">
+            <button class="btn btn-sm btn-outline" data-view="${v.id}" data-i18n="details"></button>
+            ${isAdmin && !tech ? `<button class="btn btn-sm btn-accent" data-assign="${v.id}" data-i18n="assign_tech"></button>` : ''}
+            ${(isAdmin||isTech) && v.status!=='done' && v.status!=='cancelled' ? `<button class="btn btn-sm btn-outline" data-complete="${v.id}" data-i18n="visit_done"></button>` : ''}
+            ${isAdmin ? `<button class="btn btn-sm btn-outline" data-edit="${v.id}" data-i18n="edit"></button>` : ''}
+            ${isAdmin ? `<button class="btn btn-sm btn-danger" data-del="${v.id}" data-i18n="delete"></button>` : ''}
+          </td>
+        </tr>`;
+      }).join('');
+      I18N.apply(rowsEl);
+      rowsEl.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click', ()=>openDetails(visits.find(v=>v.id===b.dataset.view), clients, techs)));
+      rowsEl.querySelectorAll('[data-assign]').forEach(b=>b.addEventListener('click', ()=>openAssign(b.dataset.assign, techs)));
+      rowsEl.querySelectorAll('[data-complete]').forEach(b=>b.addEventListener('click', ()=>{
+        DB.update('visits', b.dataset.complete, { status:'done' });
+        UI.toast(I18N.t('saved_ok'), 'success'); render();
+      }));
+      rowsEl.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openForm(visits.find(v=>v.id===b.dataset.edit))));
+      rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{
+          DB.remove('visits', b.dataset.del);
+          UI.toast(I18N.t('deleted_ok'), 'success'); render();
+        });
+      }));
+    }
+    contentEl.querySelector('#statusFilter').addEventListener('change', draw);
+    if(isAdmin) contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm());
+    draw();
+  }
+
+  function openDetails(v, clients, techs){
+    if(!v) return;
+    const client = clients.find(c=>c.id===v.clientId);
+    const tech = techs.find(t=>t.id===v.techId);
+    const hasRemote = v.remoteAccess && (v.remoteAccess.app || v.remoteAccess.code);
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="visit_details_title"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field"><label data-i18n="contract_client"></label><div>${client?client.name:'—'}</div></div>
+          <div class="field"><label data-i18n="visit_technician"></label><div>${tech?tech.name:'—'}</div></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="visit_date"></label><div>${UI.fmtDate(v.date)} ${v.time||''}</div></div>
+          <div class="field"><label data-i18n="visit_type"></label><div data-i18n="${typeLabelMap[v.type]||'issue_periodic'}"></div></div>
+        </div>
+        <div class="field"><label data-i18n="issue_desc"></label><div>${v.description||'—'}</div></div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="contact_name"></label><div>${v.contactName||'—'}</div></div>
+          <div class="field"><label data-i18n="contact_phone"></label><div>${v.contactPhone||'—'}</div></div>
+        </div>
+        <div class="field">
+          <label data-i18n="remote_access_toggle"></label>
+          ${hasRemote ? `
+            <div class="field-row">
+              <div class="field"><label data-i18n="remote_app_name"></label><div>${v.remoteAccess.app||'—'}</div></div>
+              <div class="field"><label data-i18n="remote_access_code"></label><div>${v.remoteAccess.code||'—'}</div></div>
+            </div>` : `<div class="text-muted" data-i18n="no_remote_access"></div>`}
+        </div>
+        ${v.photos && v.photos.length ? `<div class="field"><label data-i18n="attach_photos"></label><div>${v.photos.map(p=>`📎 ${p}`).join('<br>')}</div></div>` : ''}
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="mClose2" data-i18n="close"></button>
+      </div>
+    `);
+    I18N.apply(overlay);
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mClose2').addEventListener('click', UI.closeModal);
+  }
+
+  function openAssign(visitId, techs){
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="assign_tech"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="field">
+          <label data-i18n="visit_technician"></label>
+          <select id="fTech">${techs.map(t=>`<option value="${t.id}">${t.name} — ${t.specialty||''}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
+        <button class="btn btn-primary" id="mSave" data-i18n="save"></button>
+      </div>
+    `);
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      DB.update('visits', visitId, { techId: overlay.querySelector('#fTech').value, status:'scheduled' });
+      UI.closeModal(); UI.toast(I18N.t('saved_ok'),'success'); render();
+    });
+  }
+
+  function openForm(visit){
+    const editing = !!visit;
+    const clients = DB.all('clients');
+    const contracts = DB.all('contracts');
+    const techs = DB.all('technicians');
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_visit'}"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="field">
+          <label data-i18n="contract_client"></label>
+          <select id="fClient">${clients.map(c=>`<option value="${c.id}" ${editing && visit.clientId===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
+        </div>
+        <div class="field">
+          <label data-i18n="related_contract"></label>
+          <select id="fContract">${contracts.map(c=>`<option value="${c.id}" data-client="${c.clientId}" ${editing && visit.contractId===c.id?'selected':''}>${c.id}</option>`).join('')}</select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="visit_date"></label><input type="date" id="fDate" value="${editing?visit.date:DB.todayISO()}"></div>
+          <div class="field"><label data-i18n="preferred_time"></label><input type="time" id="fTime" value="${editing?(visit.time||'10:00'):'10:00'}"></div>
+        </div>
+        <div class="field">
+          <label data-i18n="visit_type"></label>
+          <select id="fType">
+            <option value="periodic" data-i18n="issue_periodic" ${editing && visit.type==='periodic'?'selected':''}></option>
+            <option value="fault" data-i18n="issue_fault" ${editing && visit.type==='fault'?'selected':''}></option>
+            <option value="urgent" data-i18n="issue_urgent" ${editing && visit.type==='urgent'?'selected':''}></option>
+          </select>
+        </div>
+        <div class="field">
+          <label data-i18n="visit_technician"></label>
+          <select id="fTech"><option value="">—</option>${techs.map(t=>`<option value="${t.id}" ${editing && visit.techId===t.id?'selected':''}>${t.name}</option>`).join('')}</select>
+        </div>
+        ${editing ? `
+        <div class="field">
+          <label data-i18n="visit_status"></label>
+          <select id="fStatus">
+            <option value="scheduled" data-i18n="visit_scheduled" ${visit.status==='scheduled'?'selected':''}></option>
+            <option value="ongoing" data-i18n="visit_ongoing" ${visit.status==='ongoing'?'selected':''}></option>
+            <option value="done" data-i18n="visit_done" ${visit.status==='done'?'selected':''}></option>
+            <option value="cancelled" data-i18n="visit_cancelled" ${visit.status==='cancelled'?'selected':''}></option>
+          </select>
+        </div>` : ''}
+        <div class="field"><label data-i18n="issue_desc"></label><textarea id="fDesc">${editing?(visit.description||''):''}</textarea></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
+        <button class="btn btn-primary" id="mSave" data-i18n="save"></button>
+      </div>
+    `);
+    I18N.apply(overlay);
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      const data = {
+        contractId: overlay.querySelector('#fContract').value,
+        clientId: overlay.querySelector('#fClient').value,
+        techId: overlay.querySelector('#fTech').value || null,
+        date: overlay.querySelector('#fDate').value,
+        time: overlay.querySelector('#fTime').value,
+        type: overlay.querySelector('#fType').value,
+        description: overlay.querySelector('#fDesc').value.trim(),
+      };
+      if(editing){
+        data.status = overlay.querySelector('#fStatus').value;
+        DB.update('visits', visit.id, data);
+        DB.logActivity('تم تعديل الزيارة ' + visit.id, 'Visit updated ' + visit.id, 'visit');
+      } else {
+        data.id = 'V-' + (5000 + DB.all('visits').length + 1);
+        data.status = 'scheduled';
+        DB.insert('visits', data);
+        DB.logActivity('تمت جدولة زيارة جديدة ' + data.id, 'New visit scheduled ' + data.id, 'visit');
+      }
+      UI.closeModal(); UI.toast(I18N.t('saved_ok'),'success'); render();
+    });
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>

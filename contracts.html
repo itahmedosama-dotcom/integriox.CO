@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Contracts</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B2545">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/lists.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+const ctx = LAYOUT.render('contracts');
+if(ctx){
+  const { user, contentEl } = ctx;
+  const isAdmin = user.role === 'admin';
+
+  const statusBadge = { active:'badge-success', closed:'badge-mute', renewal:'badge-warning', cancelled:'badge-danger' };
+  const typeLabel = { onsite:'type_onsite', remote:'type_remote', visits:'type_visits', all:'type_all' };
+
+  function render(){
+    let contracts = DB.all('contracts');
+    if(!isAdmin) contracts = contracts.filter(c=>c.clientId===user.clientId);
+    const clients = DB.all('clients');
+
+    contentEl.innerHTML = `
+      <div class="filters-bar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="searchInput" data-i18n-ph="search">
+        </div>
+        <select id="statusFilter">
+          <option value="" data-i18n="all"></option>
+          <option value="active" data-i18n="status_active"></option>
+          <option value="renewal" data-i18n="status_renewal"></option>
+          <option value="closed" data-i18n="status_closed"></option>
+          <option value="cancelled" data-i18n="status_cancelled"></option>
+        </select>
+        ${isAdmin ? `<button class="btn btn-primary" id="addBtn" data-i18n="add_contract"></button>` : ''}
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="contract_id"></th><th data-i18n="contract_client"></th><th data-i18n="contract_amount"></th>
+              <th data-i18n="contract_type"></th><th data-i18n="contract_duration"></th><th data-i18n="contract_status"></th><th data-i18n="actions"></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state hidden"><div data-i18n="no_data"></div></div>
+      </div>
+    `;
+    I18N.apply(contentEl);
+    const rowsEl = contentEl.querySelector('#rows');
+
+    function draw(){
+      const f = (contentEl.querySelector('#searchInput').value||'').toLowerCase();
+      const st = contentEl.querySelector('#statusFilter').value;
+      const list = contracts.filter(c=>{
+        const client = clients.find(x=>x.id===c.clientId);
+        const matchesText = !f || c.id.toLowerCase().includes(f) || (client && client.name.toLowerCase().includes(f));
+        const matchesStatus = !st || c.status===st;
+        return matchesText && matchesStatus;
+      });
+      contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
+      rowsEl.innerHTML = list.map(c=>{
+        const client = clients.find(x=>x.id===c.clientId);
+        return `<tr>
+          <td><strong>${c.id}</strong></td>
+          <td>${client?client.name:'—'}</td>
+          <td>${UI.fmtMoney(c.amount)}</td>
+          <td><span data-i18n="${typeLabel[c.contractType]}"></span></td>
+          <td>${c.durationMonths} <span data-i18n="months"></span> · <span data-i18n="${c.periodType==='open'?'period_open':'period_fixed'}"></span></td>
+          <td><span class="badge ${statusBadge[c.status]}" data-i18n="status_${c.status==='active'?'active':c.status}"></span></td>
+          <td class="row-actions">
+            <a class="btn btn-sm btn-outline" href="contract-template.html?id=${c.id}" data-i18n="view_contract"></a>
+            ${isAdmin?`<button class="btn btn-sm btn-danger" data-del="${c.id}" data-i18n="delete"></button>`:''}
+          </td>
+        </tr>`;
+      }).join('');
+      I18N.apply(rowsEl);
+      rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{ DB.remove('contracts', b.dataset.del); UI.toast(I18N.t('deleted_ok'),'success'); render(); });
+      }));
+    }
+
+    contentEl.querySelector('#searchInput').addEventListener('input', draw);
+    contentEl.querySelector('#statusFilter').addEventListener('change', draw);
+    if(isAdmin) contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm(clients));
+    draw();
+  }
+
+  function openForm(clients){
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="add_contract"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="field">
+          <label data-i18n="contract_client"></label>
+          <select id="fClient">${clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="contract_amount"></label><input type="number" id="fAmount" min="0"></div>
+          <div class="field"><label data-i18n="contract_duration"></label><input type="number" id="fDuration" min="1" value="12"></div>
+        </div>
+        <div class="field">
+          <label data-i18n="contract_period_type"></label>
+          <div class="radio-group">
+            <label class="radio-card active"><input type="radio" name="fPeriod" value="fixed" checked><span data-i18n="period_fixed"></span></label>
+            <label class="radio-card"><input type="radio" name="fPeriod" value="open"><span data-i18n="period_open"></span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label data-i18n="contract_type"></label>
+          <select id="fType">
+            <option value="all" data-i18n="type_all"></option>
+            <option value="onsite" data-i18n="type_onsite"></option>
+            <option value="remote" data-i18n="type_remote"></option>
+            <option value="visits" data-i18n="type_visits"></option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="contract_start"></label><input type="date" id="fStart" value="${DB.todayISO()}"></div>
+          <div class="field"><label data-i18n="contract_end"></label><input type="date" id="fEnd"></div>
+        </div>
+        <div class="field"><label data-i18n="contract_visits_total"></label><input type="number" id="fVisits" min="0" value="12"></div>
+        <div class="field">
+          <label data-i18n="payment_terms"></label>
+          <div class="radio-group">
+            <label class="radio-card active"><input type="radio" name="fPay" value="upfront" checked><span data-i18n="pay_upfront"></span></label>
+            <label class="radio-card"><input type="radio" name="fPay" value="deferred"><span data-i18n="pay_deferred"></span></label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
+        <button class="btn btn-primary" id="mSave" data-i18n="save"></button>
+      </div>
+    `);
+    I18N.apply(overlay);
+    overlay.querySelectorAll('.radio-card').forEach(card=>{
+      card.addEventListener('click', ()=>{
+        const group = card.closest('.radio-group');
+        group.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
+        card.classList.add('active');
+        card.querySelector('input').checked = true;
+      });
+    });
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      const contracts = DB.all('contracts');
+      const nextNum = 1001 + contracts.length;
+      const data = {
+        id: 'CT-' + nextNum,
+        clientId: overlay.querySelector('#fClient').value,
+        amount: Number(overlay.querySelector('#fAmount').value||0),
+        durationMonths: Number(overlay.querySelector('#fDuration').value||12),
+        periodType: overlay.querySelector('input[name=fPeriod]:checked').value,
+        contractType: overlay.querySelector('#fType').value,
+        startDate: overlay.querySelector('#fStart').value,
+        endDate: overlay.querySelector('#fEnd').value,
+        visitsTotal: Number(overlay.querySelector('#fVisits').value||0),
+        visitsUsed: 0,
+        paymentTerms: overlay.querySelector('input[name=fPay]:checked').value,
+        status: 'active',
+        signature: null,
+        createdAt: DB.todayISO(),
+      };
+      DB.insert('contracts', data);
+      DB.logActivity('تم إنشاء عقد جديد رقم ' + data.id, 'New contract created: ' + data.id, 'contract');
+      UI.closeModal(); UI.toast(I18N.t('saved_ok'),'success'); render();
+    });
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>

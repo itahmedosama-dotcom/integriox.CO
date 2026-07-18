@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Visit Request</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B2545">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/lists.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+const ctx = LAYOUT.render('visit-request');
+if(ctx){
+  const { user, contentEl } = ctx;
+  let attachedPhotos = [];
+
+  function render(){
+    const contracts = DB.all('contracts').filter(c=> user.role==='admin' ? true : c.clientId===user.clientId);
+    const clients = DB.all('clients');
+
+    contentEl.innerHTML = `
+      <div class="card" style="max-width:720px; margin:0 auto;">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title" data-i18n="visit_request_title"></h3>
+            <small data-i18n="visit_request_sub"></small>
+          </div>
+        </div>
+        <form id="reqForm">
+          ${user.role==='admin' ? `
+          <div class="field">
+            <label data-i18n="contract_client"></label>
+            <select id="fClient">${clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+          </div>` : ''}
+          <div class="field">
+            <label data-i18n="related_contract"></label>
+            <select id="fContract">
+              ${contracts.length ? contracts.map(c=>`<option value="${c.id}" data-client="${c.clientId}">${c.id} · ${UI.fmtMoney(c.amount)}</option>`).join('') : `<option value="">—</option>`}
+            </select>
+          </div>
+          <div class="field">
+            <label data-i18n="issue_type"></label>
+            <div class="radio-group">
+              <label class="radio-card active"><input type="radio" name="fType" value="periodic" checked><span data-i18n="issue_periodic"></span></label>
+              <label class="radio-card"><input type="radio" name="fType" value="fault"><span data-i18n="issue_fault"></span></label>
+              <label class="radio-card"><input type="radio" name="fType" value="urgent"><span data-i18n="issue_urgent"></span></label>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label data-i18n="preferred_date"></label><input type="date" id="fDate" value="${DB.todayISO()}" required></div>
+            <div class="field"><label data-i18n="preferred_time"></label><input type="time" id="fTime" value="10:00"></div>
+          </div>
+          <div class="field">
+            <label data-i18n="issue_desc"></label>
+            <textarea id="fDesc" required></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field"><label data-i18n="contact_name"></label><input type="text" id="fContactName" value="${user.name||''}"></div>
+            <div class="field"><label data-i18n="contact_phone"></label><input type="tel" id="fContactPhone" value="${user.phone||''}"></div>
+          </div>
+          <div class="field">
+            <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="fRemoteToggle">
+              <span data-i18n="remote_access_toggle"></span>
+            </label>
+            <p class="hint" data-i18n="remote_access_hint" style="margin-top:6px;"></p>
+          </div>
+          <div class="field-row hidden" id="remoteFields">
+            <div class="field"><label data-i18n="remote_app_name"></label><input type="text" id="fRemoteApp"></div>
+            <div class="field"><label data-i18n="remote_access_code"></label><input type="text" id="fRemoteCode"></div>
+          </div>
+          <div class="field">
+            <label data-i18n="attach_photos"></label>
+            <div class="file-drop" id="dropZone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>
+              <div class="text-muted" style="font-size:13px;" data-i18n="attach_photos"></div>
+            </div>
+            <input type="file" id="fPhotos" accept="image/*" multiple class="hidden">
+            <div id="photoList"></div>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" data-i18n="submit_request"></button>
+        </form>
+      </div>
+    `;
+    I18N.apply(contentEl);
+
+    contentEl.querySelectorAll('.radio-card').forEach(card=>{
+      card.addEventListener('click', ()=>{
+        const group = card.closest('.radio-group');
+        group.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
+        card.classList.add('active');
+        card.querySelector('input').checked = true;
+      });
+    });
+
+    const remoteToggle = contentEl.querySelector('#fRemoteToggle');
+    const remoteFields = contentEl.querySelector('#remoteFields');
+    remoteToggle.addEventListener('change', ()=>{
+      remoteFields.classList.toggle('hidden', !remoteToggle.checked);
+    });
+
+    const dropZone = contentEl.querySelector('#dropZone');
+    const fileInput = contentEl.querySelector('#fPhotos');
+    const photoList = contentEl.querySelector('#photoList');
+    dropZone.addEventListener('click', ()=>fileInput.click());
+    fileInput.addEventListener('change', async ()=>{
+      for(const file of fileInput.files){
+        const dataUrl = await UI.fileToDataURL(file);
+        attachedPhotos.push({ name:file.name, data:dataUrl });
+      }
+      renderPhotos();
+    });
+    function renderPhotos(){
+      photoList.innerHTML = attachedPhotos.map((p,i)=>`
+        <div class="file-preview">
+          <span>📎 ${p.name}</span>
+          <span class="rm" data-rm="${i}">✕</span>
+        </div>`).join('');
+      photoList.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click', ()=>{
+        attachedPhotos.splice(Number(b.dataset.rm),1); renderPhotos();
+      }));
+    }
+
+    contentEl.querySelector('#reqForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const contractSel = contentEl.querySelector('#fContract');
+      const contractId = contractSel.value;
+      const clientId = user.role==='admin'
+        ? contentEl.querySelector('#fClient').value
+        : user.clientId;
+      if(!contractId){ UI.toast(I18N.t('err_required'), 'error'); return; }
+
+      const remoteEnabled = contentEl.querySelector('#fRemoteToggle').checked;
+      const remoteAccess = remoteEnabled ? {
+        app: contentEl.querySelector('#fRemoteApp').value.trim(),
+        code: contentEl.querySelector('#fRemoteCode').value.trim(),
+      } : null;
+
+      const data = {
+        id: 'V-' + (5000 + DB.all('visits').length + 1),
+        contractId, clientId, techId:null,
+        date: contentEl.querySelector('#fDate').value,
+        time: contentEl.querySelector('#fTime').value,
+        type: contentEl.querySelector('input[name=fType]:checked').value,
+        status: 'scheduled',
+        description: contentEl.querySelector('#fDesc').value.trim(),
+        contactName: contentEl.querySelector('#fContactName').value.trim(),
+        contactPhone: contentEl.querySelector('#fContactPhone').value.trim(),
+        remoteAccess,
+        photos: attachedPhotos.map(p=>p.name),
+      };
+      DB.insert('visits', data);
+      DB.logActivity('طلب زيارة جديد ' + data.id, 'New visit request ' + data.id, 'visit');
+      UI.toast(I18N.t('request_sent') + ' ' + data.id, 'success');
+      attachedPhotos = [];
+      contentEl.querySelector('#reqForm').reset();
+      remoteFields.classList.add('hidden');
+      renderPhotos();
+    });
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>
