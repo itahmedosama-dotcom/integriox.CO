@@ -6,8 +6,21 @@
 const AUTH = (function(){
   const SKEY = 'integriox_session';
 
+  // Auto-transitions any 'approved' user whose suspendAt date has already
+  // passed into 'suspended'. Safe to call repeatedly (idempotent).
+  function checkSuspensions(){
+    const today = DB.todayISO();
+    DB.all('users').forEach(u=>{
+      if(u.status==='approved' && u.suspendAt && u.suspendAt <= today){
+        DB.update('users', u.id, { status:'suspended' });
+        DB.logActivity('تم إيقاف حساب ' + u.name + ' تلقائيًا (تاريخ الإيقاف المحدد)', 'Account auto-suspended: ' + u.name + ' (scheduled suspend date)', 'user');
+      }
+    });
+  }
+
   // Accepts either the user's email OR username (case-insensitive) in `identifier`.
   function login(identifier, password){
+    checkSuspensions();
     const users = DB.all('users');
     const id = String(identifier||'').trim().toLowerCase();
     const u = users.find(x=>
@@ -15,6 +28,7 @@ const AUTH = (function(){
       (x.username && x.username.toLowerCase()===id)
     );
     if(!u || u.password!==password) return { ok:false, error:'err_login' };
+    if(u.status === 'suspended') return { ok:false, error:'err_suspended' };
     if(u.status !== 'approved') return { ok:false, error:'err_pending' };
     localStorage.setItem(SKEY, JSON.stringify({ userId:u.id }));
     return { ok:true, user:u };
@@ -61,7 +75,10 @@ const AUTH = (function(){
   function requireAuth(){
     const u = currentUser();
     if(!u){ window.location.href = 'index.html'; return null; }
-    return u;
+    checkSuspensions();
+    const fresh = DB.get('users', u.id);
+    if(!fresh || fresh.status === 'suspended'){ logout(); return null; }
+    return fresh;
   }
 
   function roleLabel(role){
@@ -70,5 +87,5 @@ const AUTH = (function(){
     return (map[role] && map[role][lang]) || role;
   }
 
-  return { login, register, logout, currentUser, requireAuth, roleLabel };
+  return { login, register, logout, currentUser, requireAuth, roleLabel, checkSuspensions };
 })();

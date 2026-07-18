@@ -291,7 +291,12 @@ const DB = (function(){
   // type: one of client | technician | contract | visit | payment | invoice | user | settings | other
   function logActivity(text_ar, text_en, type){
     const data = load();
-    data.activity.unshift({ id: uid('a'), text_ar, text_en, type: type||'other', at: new Date().toISOString() });
+    let byUserId = null, byUserName = null;
+    try{
+      const u = window.AUTH && AUTH.currentUser ? AUTH.currentUser() : null;
+      if(u){ byUserId = u.id; byUserName = u.name; }
+    }catch(e){ /* no session (e.g. public visit-request page) */ }
+    data.activity.unshift({ id: uid('a'), text_ar, text_en, type: type||'other', byUserId, byUserName, at: new Date().toISOString() });
     data.activity = data.activity.slice(0,500);
     save(data);
     pushRemote({ action:'insert', collection:'activity', data:data.activity[0] });

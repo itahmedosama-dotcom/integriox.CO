@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719g">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719h">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719g"></script>
-<script src="assets/js/lists.js?v=20260719g"></script>
-<script src="assets/js/config.js?v=20260719g"></script>
-<script src="assets/js/db.js?v=20260719g"></script>
-<script src="assets/js/billing.js?v=20260719g"></script>
-<script src="assets/js/auth.js?v=20260719g"></script>
-<script src="assets/js/ui.js?v=20260719g"></script>
-<script src="assets/js/layout.js?v=20260719g"></script>
+<script src="assets/js/i18n.js?v=20260719h"></script>
+<script src="assets/js/lists.js?v=20260719h"></script>
+<script src="assets/js/config.js?v=20260719h"></script>
+<script src="assets/js/db.js?v=20260719h"></script>
+<script src="assets/js/billing.js?v=20260719h"></script>
+<script src="assets/js/auth.js?v=20260719h"></script>
+<script src="assets/js/ui.js?v=20260719h"></script>
+<script src="assets/js/layout.js?v=20260719h"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -97,7 +97,8 @@ if(ctx){
           <div><div class="text-muted" style="font-size:12px;" data-i18n="contract_duration"></div><div style="font-weight:700;">${contract.durationMonths} ${I18N.t('months')} · <span data-i18n="${contract.periodType==='open'?'period_open':'period_fixed'}"></span></div></div>
           <div><div class="text-muted" style="font-size:12px;" data-i18n="contract_type"></div><div style="font-weight:700;" data-i18n="${typeLabel[contract.contractType]}"></div></div>
           <div><div class="text-muted" style="font-size:12px;" data-i18n="payment_terms"></div><div style="font-weight:700;" data-i18n="${contract.paymentTerms==='upfront'?'pay_upfront':'pay_deferred'}"></div></div>
-          ${contract.paymentTerms==='deferred' && contract.paymentDueDay ? `<div><div class="text-muted" style="font-size:12px;" data-i18n="payment_due_day"></div><div style="font-weight:700;">${contract.paymentDueDay}</div></div>` : ''}
+          ${contract.paymentTerms==='deferred' && contract.paymentDueDay ? `<div><div class="text-muted" style="font-size:12px;" data-i18n="billing_cycle"></div><div style="font-weight:700;" data-i18n="${contract.billingCycle==='yearly'?'cycle_yearly':'cycle_monthly'}"></div></div>
+          <div><div class="text-muted" style="font-size:12px;" data-i18n="payment_due_day"></div><div style="font-weight:700;">${contract.paymentDueDay}</div></div>` : ''}
           <div><div class="text-muted" style="font-size:12px;" data-i18n="contract_start"></div><div style="font-weight:700;">${UI.fmtDate(contract.startDate)}</div></div>
           <div><div class="text-muted" style="font-size:12px;" data-i18n="contract_end"></div><div style="font-weight:700;">${contract.endDate?UI.fmtDate(contract.endDate):I18N.t('period_open')}</div></div>
           <div><div class="text-muted" style="font-size:12px;" data-i18n="contract_visits_total"></div><div style="font-weight:700;">${contract.visitsUnlimited ? I18N.t('visits_unlimited') : (contract.visitsUsed + '/' + contract.visitsTotal)}</div></div>

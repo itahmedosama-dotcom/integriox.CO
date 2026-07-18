@@ -9,18 +9,18 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719g">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719h">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719g"></script>
-<script src="assets/js/lists.js?v=20260719g"></script>
-<script src="assets/js/config.js?v=20260719g"></script>
-<script src="assets/js/db.js?v=20260719g"></script>
-<script src="assets/js/auth.js?v=20260719g"></script>
-<script src="assets/js/ui.js?v=20260719g"></script>
-<script src="assets/js/layout.js?v=20260719g"></script>
+<script src="assets/js/i18n.js?v=20260719h"></script>
+<script src="assets/js/lists.js?v=20260719h"></script>
+<script src="assets/js/config.js?v=20260719h"></script>
+<script src="assets/js/db.js?v=20260719h"></script>
+<script src="assets/js/auth.js?v=20260719h"></script>
+<script src="assets/js/ui.js?v=20260719h"></script>
+<script src="assets/js/layout.js?v=20260719h"></script>
 <script>
 const ctx = LAYOUT.render('visits');
 if(ctx){
@@ -29,7 +29,7 @@ if(ctx){
   const isTech = user.role === 'technician';
   const isClient = user.role === 'client';
 
-  const statusBadge = { scheduled:'badge-info', ongoing:'badge-warning', done:'badge-success', cancelled:'badge-danger' };
+  const statusBadge = { requested:'badge-danger', scheduled:'badge-info', ongoing:'badge-warning', done:'badge-success', cancelled:'badge-mute' };
   const typeLabelMap = { periodic:'issue_periodic', fault:'issue_fault', urgent:'issue_urgent' };
 
   function render(){
@@ -49,6 +49,7 @@ if(ctx){
       <div class="filters-bar">
         <select id="statusFilter">
           <option value="" data-i18n="all"></option>
+          <option value="requested" data-i18n="visit_requested"></option>
           <option value="scheduled" data-i18n="visit_scheduled"></option>
           <option value="ongoing" data-i18n="visit_ongoing"></option>
           <option value="done" data-i18n="visit_done"></option>
@@ -106,6 +107,7 @@ if(ctx){
       rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
         UI.confirmAction(I18N.t('confirm_delete'), ()=>{
           DB.remove('visits', b.dataset.del);
+          DB.logActivity('تم حذف الزيارة ' + b.dataset.del, 'Visit deleted ' + b.dataset.del, 'visit');
           UI.toast(I18N.t('deleted_ok'), 'success'); render();
         });
       }));
@@ -191,7 +193,7 @@ if(ctx){
         </div>
         <div class="field">
           <label data-i18n="related_contract"></label>
-          <select id="fContract">${contracts.map(c=>`<option value="${c.id}" data-client="${c.clientId}" ${editing && visit.contractId===c.id?'selected':''}>${c.id}</option>`).join('')}</select>
+          <select id="fContract"></select>
         </div>
         <div class="field-row">
           <div class="field"><label data-i18n="visit_date"></label><input type="date" id="fDate" value="${editing?visit.date:DB.todayISO()}"></div>
@@ -213,6 +215,7 @@ if(ctx){
         <div class="field">
           <label data-i18n="visit_status"></label>
           <select id="fStatus">
+            <option value="requested" data-i18n="visit_requested" ${visit.status==='requested'?'selected':''}></option>
             <option value="scheduled" data-i18n="visit_scheduled" ${visit.status==='scheduled'?'selected':''}></option>
             <option value="ongoing" data-i18n="visit_ongoing" ${visit.status==='ongoing'?'selected':''}></option>
             <option value="done" data-i18n="visit_done" ${visit.status==='done'?'selected':''}></option>
@@ -227,6 +230,16 @@ if(ctx){
       </div>
     `);
     I18N.apply(overlay);
+    const vClientSel = overlay.querySelector('#fClient');
+    const vContractSel = overlay.querySelector('#fContract');
+    function drawVisitContracts(){
+      const relevant = contracts.filter(c=>c.clientId===vClientSel.value);
+      vContractSel.innerHTML = relevant.map(c=>
+        `<option value="${c.id}" ${editing && visit.contractId===c.id?'selected':''}>${c.id}</option>`
+      ).join('');
+    }
+    drawVisitContracts();
+    vClientSel.addEventListener('change', drawVisitContracts);
     overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mSave').addEventListener('click', ()=>{

@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719g">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719h">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719g"></script>
-<script src="assets/js/lists.js?v=20260719g"></script>
-<script src="assets/js/config.js?v=20260719g"></script>
-<script src="assets/js/db.js?v=20260719g"></script>
-<script src="assets/js/billing.js?v=20260719g"></script>
-<script src="assets/js/auth.js?v=20260719g"></script>
-<script src="assets/js/ui.js?v=20260719g"></script>
-<script src="assets/js/layout.js?v=20260719g"></script>
+<script src="assets/js/i18n.js?v=20260719h"></script>
+<script src="assets/js/lists.js?v=20260719h"></script>
+<script src="assets/js/config.js?v=20260719h"></script>
+<script src="assets/js/db.js?v=20260719h"></script>
+<script src="assets/js/billing.js?v=20260719h"></script>
+<script src="assets/js/auth.js?v=20260719h"></script>
+<script src="assets/js/ui.js?v=20260719h"></script>
+<script src="assets/js/layout.js?v=20260719h"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -88,13 +88,20 @@ if(ctx){
           <td><span class="badge ${statusBadge[c.status]}" data-i18n="status_${c.status==='active'?'active':c.status}"></span></td>
           <td class="row-actions">
             <a class="btn btn-sm btn-outline" href="contract-template.html?id=${c.id}" data-i18n="view_contract"></a>
+            ${isAdmin?`<button class="btn btn-sm btn-outline" data-edit="${c.id}" data-i18n="edit"></button>`:''}
             ${isAdmin?`<button class="btn btn-sm btn-danger" data-del="${c.id}" data-i18n="delete"></button>`:''}
           </td>
         </tr>`;
       }).join('');
       I18N.apply(rowsEl);
+      rowsEl.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openForm(clients, contracts.find(c=>c.id===b.dataset.edit))));
       rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
-        UI.confirmAction(I18N.t('confirm_delete'), ()=>{ DB.remove('contracts', b.dataset.del); UI.toast(I18N.t('deleted_ok'),'success'); render(); });
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{
+          const target = contracts.find(c=>c.id===b.dataset.del);
+          DB.remove('contracts', b.dataset.del);
+          DB.logActivity('تم حذف العقد ' + b.dataset.del, 'Contract deleted ' + b.dataset.del, 'contract');
+          UI.toast(I18N.t('deleted_ok'),'success'); render();
+        });
       }));
     }
 
@@ -104,16 +111,17 @@ if(ctx){
     draw();
   }
 
-  function openForm(clients){
+  function openForm(clients, contract){
+    const editing = !!contract;
     const overlay = UI.openModal(`
-      <div class="modal-head"><h3 data-i18n="add_contract"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_contract'}"></h3><button class="close-x" id="mClose">&times;</button></div>
       <div class="modal-body">
         <div class="field">
           <label data-i18n="contract_client"></label>
-          <select id="fClient">${clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+          <select id="fClient">${clients.map(c=>`<option value="${c.id}" ${editing && contract.clientId===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
         </div>
         <div class="field-row">
-          <div class="field"><label data-i18n="contract_amount"></label><input type="number" id="fAmount" min="0"></div>
+          <div class="field"><label data-i18n="contract_amount"></label><input type="number" id="fAmount" min="0" value="${editing?contract.amount:''}"></div>
           <div class="field">
             <label data-i18n="contract_currency"></label>
             <div style="display:flex; gap:8px;">
@@ -122,33 +130,33 @@ if(ctx){
             </div>
           </div>
         </div>
-        <div class="field"><label data-i18n="contract_duration"></label><input type="number" id="fDuration" min="1" value="12"></div>
+        <div class="field"><label data-i18n="contract_duration"></label><input type="number" id="fDuration" min="1" value="${editing?contract.durationMonths:12}"></div>
         <div class="field">
           <label data-i18n="contract_period_type"></label>
           <div class="radio-group">
-            <label class="radio-card active"><input type="radio" name="fPeriod" value="fixed" checked><span data-i18n="period_fixed"></span></label>
-            <label class="radio-card"><input type="radio" name="fPeriod" value="open"><span data-i18n="period_open"></span></label>
+            <label class="radio-card ${!editing || contract.periodType==='fixed'?'active':''}"><input type="radio" name="fPeriod" value="fixed" ${!editing || contract.periodType==='fixed'?'checked':''}><span data-i18n="period_fixed"></span></label>
+            <label class="radio-card ${editing && contract.periodType==='open'?'active':''}"><input type="radio" name="fPeriod" value="open" ${editing && contract.periodType==='open'?'checked':''}><span data-i18n="period_open"></span></label>
           </div>
         </div>
         <div class="field">
           <label data-i18n="contract_type"></label>
           <select id="fType">
-            <option value="all" data-i18n="type_all"></option>
-            <option value="onsite" data-i18n="type_onsite"></option>
-            <option value="remote" data-i18n="type_remote"></option>
-            <option value="visits" data-i18n="type_visits"></option>
+            <option value="all" data-i18n="type_all" ${editing && contract.contractType==='all'?'selected':''}></option>
+            <option value="onsite" data-i18n="type_onsite" ${editing && contract.contractType==='onsite'?'selected':''}></option>
+            <option value="remote" data-i18n="type_remote" ${editing && contract.contractType==='remote'?'selected':''}></option>
+            <option value="visits" data-i18n="type_visits" ${editing && contract.contractType==='visits'?'selected':''}></option>
           </select>
         </div>
         <div class="field-row">
-          <div class="field"><label data-i18n="contract_start"></label><input type="date" id="fStart" value="${DB.todayISO()}"></div>
-          <div class="field"><label data-i18n="contract_end"></label><input type="date" id="fEnd"></div>
+          <div class="field"><label data-i18n="contract_start"></label><input type="date" id="fStart" value="${editing?contract.startDate:DB.todayISO()}"></div>
+          <div class="field"><label data-i18n="contract_end"></label><input type="date" id="fEnd" value="${editing?(contract.endDate||''):''}"></div>
         </div>
         <div class="field">
           <label data-i18n="contract_visits_total"></label>
           <div style="display:flex; gap:10px; align-items:center;">
-            <input type="number" id="fVisits" min="0" value="12" style="flex:1;">
+            <input type="number" id="fVisits" min="0" value="${editing?(contract.visitsTotal||0):12}" style="flex:1;" ${editing && contract.visitsUnlimited?'disabled':''}>
             <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer;">
-              <input type="checkbox" id="fVisitsUnlimited" style="width:auto;">
+              <input type="checkbox" id="fVisitsUnlimited" style="width:auto;" ${editing && contract.visitsUnlimited?'checked':''}>
               <span data-i18n="visits_unlimited"></span>
             </label>
           </div>
@@ -156,13 +164,18 @@ if(ctx){
         <div class="field">
           <label data-i18n="payment_terms"></label>
           <div class="radio-group">
-            <label class="radio-card active"><input type="radio" name="fPay" value="upfront" checked><span data-i18n="pay_upfront"></span></label>
-            <label class="radio-card"><input type="radio" name="fPay" value="deferred"><span data-i18n="pay_deferred"></span></label>
+            <label class="radio-card ${!editing || contract.paymentTerms==='upfront'?'active':''}"><input type="radio" name="fPay" value="upfront" ${!editing || contract.paymentTerms==='upfront'?'checked':''}><span data-i18n="pay_upfront"></span></label>
+            <label class="radio-card ${editing && contract.paymentTerms==='deferred'?'active':''}"><input type="radio" name="fPay" value="deferred" ${editing && contract.paymentTerms==='deferred'?'checked':''}><span data-i18n="pay_deferred"></span></label>
           </div>
         </div>
-        <div class="field hidden" id="dueDayWrap">
+        <div class="field ${editing && contract.paymentTerms==='deferred' ? '' : 'hidden'}" id="dueDayWrap">
+          <label data-i18n="billing_cycle"></label>
+          <div class="radio-group" style="margin-bottom:12px;">
+            <label class="radio-card ${!editing || (contract.billingCycle||'monthly')==='monthly'?'active':''}"><input type="radio" name="fCycle" value="monthly" ${!editing || (contract.billingCycle||'monthly')==='monthly'?'checked':''}><span data-i18n="cycle_monthly"></span></label>
+            <label class="radio-card ${editing && contract.billingCycle==='yearly'?'active':''}"><input type="radio" name="fCycle" value="yearly" ${editing && contract.billingCycle==='yearly'?'checked':''}><span data-i18n="cycle_yearly"></span></label>
+          </div>
           <label data-i18n="payment_due_day"></label>
-          <input type="number" id="fDueDay" min="1" max="28" value="1">
+          <input type="number" id="fDueDay" min="1" max="28" value="${editing?(contract.paymentDueDay||1):1}">
           <p class="hint" data-i18n="payment_due_day_hint" style="margin-top:4px;"></p>
         </div>
         <div class="field">
@@ -170,6 +183,16 @@ if(ctx){
           <div id="taxCheckboxes" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
           <p class="hint" data-i18n="select_taxes_hint" style="margin-top:6px;"></p>
         </div>
+        ${editing ? `
+        <div class="field">
+          <label data-i18n="contract_status"></label>
+          <select id="fStatus">
+            <option value="active" data-i18n="status_active" ${contract.status==='active'?'selected':''}></option>
+            <option value="renewal" data-i18n="status_renewal" ${contract.status==='renewal'?'selected':''}></option>
+            <option value="closed" data-i18n="status_closed" ${contract.status==='closed'?'selected':''}></option>
+            <option value="cancelled" data-i18n="status_cancelled" ${contract.status==='cancelled'?'selected':''}></option>
+          </select>
+        </div>` : ''}
       </div>
       <div class="modal-foot">
         <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
@@ -186,7 +209,7 @@ if(ctx){
           ${c.code} — ${I18N.getLang()==='ar'?c.nameAr:c.nameEn}
         </option>`).join('');
     }
-    drawCurrencies('SAR');
+    drawCurrencies(editing ? (contract.currency||'SAR') : 'SAR');
     overlay.querySelector('#addCurrencyBtn').addEventListener('click', ()=>{
       const code = (window.prompt(I18N.t('currency_code_prompt'))||'').trim().toUpperCase();
       if(!code) return;
@@ -206,9 +229,10 @@ if(ctx){
       taxBox.innerHTML = `<span class="text-muted" style="font-size:12.5px;" data-i18n="contract_no_tax"></span>`;
       I18N.apply(taxBox);
     } else {
+      const selectedTaxIds = editing ? (contract.taxIds||[]) : [];
       taxBox.innerHTML = enabledTaxes.map(t=>`
         <label style="display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:99px; padding:6px 12px; cursor:pointer; font-size:12.5px;">
-          <input type="checkbox" value="${t.id}" style="width:auto;">
+          <input type="checkbox" value="${t.id}" style="width:auto;" ${selectedTaxIds.includes(t.id)?'checked':''}>
           ${I18N.getLang()==='ar' ? t.countryAr : (t.countryEn||t.countryAr)} — ${t.nameAr} ${t.rate}%
         </label>`).join('');
     }
@@ -234,13 +258,11 @@ if(ctx){
     overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mSave').addEventListener('click', ()=>{
-      const contracts = DB.all('contracts');
-      const nextNum = 1001 + contracts.length;
       const visitsUnlimited = overlay.querySelector('#fVisitsUnlimited').checked;
       const payTerms = overlay.querySelector('input[name=fPay]:checked').value;
+      const cycleInput = overlay.querySelector('input[name=fCycle]:checked');
       const taxIds = Array.from(taxBox.querySelectorAll('input[type=checkbox]:checked')).map(cb=>cb.value);
       const data = {
-        id: 'CT-' + nextNum,
         clientId: overlay.querySelector('#fClient').value,
         amount: Number(overlay.querySelector('#fAmount').value||0),
         currency: currencySelect.value,
@@ -251,16 +273,24 @@ if(ctx){
         endDate: overlay.querySelector('#fEnd').value,
         visitsTotal: visitsUnlimited ? null : Number(visitsInput.value||0),
         visitsUnlimited,
-        visitsUsed: 0,
         paymentTerms: payTerms,
+        billingCycle: payTerms==='deferred' ? (cycleInput ? cycleInput.value : 'monthly') : null,
         paymentDueDay: payTerms==='deferred' ? Number(overlay.querySelector('#fDueDay').value||1) : null,
         taxIds,
-        status: 'active',
-        signature: null,
-        createdAt: DB.todayISO(),
       };
-      DB.insert('contracts', data);
-      DB.logActivity('تم إنشاء عقد جديد رقم ' + data.id, 'New contract created: ' + data.id, 'contract');
+      if(editing){
+        data.status = overlay.querySelector('#fStatus').value;
+        DB.update('contracts', contract.id, data);
+        DB.logActivity('تم تعديل العقد ' + contract.id, 'Contract updated ' + contract.id, 'contract');
+      } else {
+        data.id = 'CT-' + (1001 + DB.all('contracts').length);
+        data.visitsUsed = 0;
+        data.status = 'active';
+        data.signature = null;
+        data.createdAt = DB.todayISO();
+        DB.insert('contracts', data);
+        DB.logActivity('تم إنشاء عقد جديد رقم ' + data.id, 'New contract created: ' + data.id, 'contract');
+      }
       UI.closeModal(); UI.toast(I18N.t('saved_ok'),'success'); render();
     });
   }
