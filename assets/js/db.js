@@ -49,17 +49,17 @@ const DB = (function(){
         // Contract subscription currencies — editable/extendable directly
         // from the "add contract" screen, not just Settings.
         currencies: [
-          { code:'SAR', nameAr:'ريال سعودي', nameEn:'Saudi Riyal', symbol:'ر.س' },
-          { code:'USD', nameAr:'دولار أمريكي', nameEn:'US Dollar', symbol:'$' },
-          { code:'EUR', nameAr:'يورو', nameEn:'Euro', symbol:'€' },
-          { code:'AED', nameAr:'درهم إماراتي', nameEn:'UAE Dirham', symbol:'د.إ' },
-          { code:'EGP', nameAr:'جنيه مصري', nameEn:'Egyptian Pound', symbol:'ج.م' },
-          { code:'KWD', nameAr:'دينار كويتي', nameEn:'Kuwaiti Dinar', symbol:'د.ك' },
-          { code:'QAR', nameAr:'ريال قطري', nameEn:'Qatari Riyal', symbol:'ر.ق' },
-          { code:'BHD', nameAr:'دينار بحريني', nameEn:'Bahraini Dinar', symbol:'د.ب' },
-          { code:'OMR', nameAr:'ريال عماني', nameEn:'Omani Rial', symbol:'ر.ع' },
-          { code:'JOD', nameAr:'دينار أردني', nameEn:'Jordanian Dinar', symbol:'د.أ' },
-          { code:'GBP', nameAr:'جنيه إسترليني', nameEn:'British Pound', symbol:'£' },
+          { code:'SAR', nameAr:'ريال سعودي', nameEn:'Saudi Riyal', symbol:'ر.س', country:'السعودية' },
+          { code:'USD', nameAr:'دولار أمريكي', nameEn:'US Dollar', symbol:'$', country:'' },
+          { code:'EUR', nameAr:'يورو', nameEn:'Euro', symbol:'€', country:'' },
+          { code:'AED', nameAr:'درهم إماراتي', nameEn:'UAE Dirham', symbol:'د.إ', country:'الإمارات' },
+          { code:'EGP', nameAr:'جنيه مصري', nameEn:'Egyptian Pound', symbol:'ج.م', country:'مصر' },
+          { code:'KWD', nameAr:'دينار كويتي', nameEn:'Kuwaiti Dinar', symbol:'د.ك', country:'الكويت' },
+          { code:'QAR', nameAr:'ريال قطري', nameEn:'Qatari Riyal', symbol:'ر.ق', country:'قطر' },
+          { code:'BHD', nameAr:'دينار بحريني', nameEn:'Bahraini Dinar', symbol:'د.ب', country:'البحرين' },
+          { code:'OMR', nameAr:'ريال عماني', nameEn:'Omani Rial', symbol:'ر.ع', country:'عُمان' },
+          { code:'JOD', nameAr:'دينار أردني', nameEn:'Jordanian Dinar', symbol:'د.أ', country:'الأردن' },
+          { code:'GBP', nameAr:'جنيه إسترليني', nameEn:'British Pound', symbol:'£', country:'' },
         ],
         sheetUrl: cfg.sheetUrl || '',
         driveFolderId: '',
@@ -144,6 +144,34 @@ const DB = (function(){
 
   function resetDemo(){ localStorage.removeItem(KEY); cache = null; return load(); }
 
+  // Wipes every collection (clients, technicians, contracts, visits,
+  // payments, invoices, complaints, activity, other users) both locally
+  // AND on the connected Sheet, but keeps the currently logged-in admin's
+  // own account and the Sheet connection/API key untouched. Previously
+  // "delete all" only cleared localStorage, so the very next page load
+  // would silently pull all the old data straight back down from the
+  // Sheet — this now clears both sides.
+  function clearAllData(){
+    const data = load();
+    const preservedSettings = {
+      sheetUrl: data.settings.sheetUrl,
+      apiKeyEnc: data.settings.apiKeyEnc,
+      sheetUrlIsLocalOverride: data.settings.sheetUrlIsLocalOverride,
+      driveFolderId: data.settings.driveFolderId,
+    };
+    let currentUser = null;
+    try{ currentUser = window.AUTH && AUTH.currentUser ? AUTH.currentUser() : null; }catch(e){}
+    const fresh = seed();
+    const newData = Object.assign({}, fresh, {
+      settings: Object.assign({}, fresh.settings, preservedSettings),
+      users: currentUser ? [currentUser] : [],
+    });
+    save(newData);
+    const keepUserIds = currentUser ? [currentUser.id] : [];
+    pushRemote({ action:'clearAll', keepUserIds });
+    return newData;
+  }
+
   /* ---------- remote sync ----------
      Every insert/update/delete pushes ONLY the row that changed (instead of
      re-writing the whole sheet on every keystroke-triggered save), which
@@ -217,14 +245,27 @@ const DB = (function(){
           if(col==='settings') return;
           merged[col] = (remote[col]||[]).map(hydrateRow);
         });
+        if(merged.users){
+          merged.users = merged.users.map(u=>{
+            if(!u.password) return u;
+            const decoded = decodeSecret(u.password);
+            return { ...u, password: decoded || u.password };
+          });
+        }
         merged.settings = hydrateRow(Object.assign({}, data.settings, remote.settings||{}));
         save(merged);
         return merged;
       });
   }
-  function syncFull(){
+  // Clones the full dataset with every user's password encoded, for full
+  // (not per-row) syncs to the Sheet.
+  function redactedFullData(){
     const data = load();
-    pushRemote({ action:'syncAll', payload:data });
+    if(!data.users || !data.users.length) return data;
+    return { ...data, users: data.users.map(u=> u.password ? { ...u, password: encodeSecret(u.password) } : u) };
+  }
+  function syncFull(){
+    pushRemote({ action:'syncAll', payload: redactedFullData() });
   }
   // Promise-based full push, used by the explicit "Sync Now" button in
   // Settings so the admin gets a definitive success/failure result instead
@@ -232,7 +273,7 @@ const DB = (function(){
   function syncNow(){
     const data = load();
     if(!data.settings.sheetUrl) return Promise.reject(new Error('no sheet url configured'));
-    const payload = JSON.stringify(Object.assign({ apiKey: decodeSecret(data.settings.apiKeyEnc) }, { action:'syncAll', payload:data }));
+    const payload = JSON.stringify(Object.assign({ apiKey: decodeSecret(data.settings.apiKeyEnc) }, { action:'syncAll', payload: redactedFullData() }));
     return fetch(data.settings.sheetUrl, { method:'POST', body: payload })
       .then(res=>res.json())
       .then(json=>{
@@ -244,12 +285,19 @@ const DB = (function(){
   // ---------- generic collection helpers ----------
   function all(col){ return load()[col] || []; }
   function get(col, id){ return all(col).find(x=>x.id===id); }
+  // Never send a readable password to the Sheet — encode it in the outgoing
+  // payload only (the local copy stays plaintext so login can compare
+  // directly; pullFromSheet decodes it back on the way in).
+  function redactPasswordForRemote(col, obj){
+    if(col !== 'users' || !obj || obj.password === undefined) return obj;
+    return { ...obj, password: encodeSecret(obj.password) };
+  }
   function insert(col, obj){
     const data = load();
     if(!obj.id) obj.id = uid(col.slice(0,2));
     data[col].push(obj);
     save(data);
-    pushRemote({ action:'insert', collection:col, data:obj });
+    pushRemote({ action:'insert', collection:col, data: redactPasswordForRemote(col, obj) });
     return obj;
   }
   function update(col, id, patch){
@@ -258,7 +306,7 @@ const DB = (function(){
     if(idx===-1) return null;
     data[col][idx] = { ...data[col][idx], ...patch };
     save(data);
-    pushRemote({ action:'update', collection:col, id, patch });
+    pushRemote({ action:'update', collection:col, id, patch: redactPasswordForRemote(col, patch) });
     return data[col][idx];
   }
   function remove(col, id){
@@ -306,7 +354,7 @@ const DB = (function(){
     uid, todayISO, load, save, resetDemo,
     all, get, insert, update, remove,
     getSettings, saveSettings, logActivity,
-    encodeSecret, decodeSecret, syncFull, syncNow, pullFromSheet, shippedConfig,
+    encodeSecret, decodeSecret, syncFull, syncNow, pullFromSheet, clearAllData, shippedConfig,
     setMode:(m)=>MODE=m, getMode:()=>MODE,
   };
 })();

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Integriox — Invoice</title>
+<title>Integriox — Payment Receipt</title>
 <link rel="icon" href="assets/images/logo.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0B2545">
@@ -23,34 +23,36 @@
 <script src="assets/js/ui.js?v=20260719i"></script>
 <script src="assets/js/layout.js?v=20260719i"></script>
 <script>
-const ctx = LAYOUT.render('invoices');
+const ctx = LAYOUT.render('payments');
 if(ctx){
   const { contentEl } = ctx;
   const params = new URLSearchParams(window.location.search);
-  const invoiceId = params.get('id');
-  const invoice = DB.get('invoices', invoiceId);
+  const paymentId = params.get('id');
+  const payment = DB.get('payments', paymentId);
   const settings = DB.getSettings();
 
+  const methodLabel = { bank:'method_bank', cash:'method_cash', other:'method_other' };
+  const statusLabel = { review:'pay_review', confirmed:'pay_confirmed', rejected:'pay_rejected' };
+
   function render(){
-    if(!invoice){
+    if(!payment){
       contentEl.innerHTML = `<div class="empty-state">${I18N.t('no_data')}</div>`;
       return;
     }
-    const client = DB.get('clients', invoice.clientId);
-    const contract = invoice.contractId ? DB.get('contracts', invoice.contractId) : null;
-    const breakdown = BILLING.invoiceBreakdown(invoice.amount, contract);
-    const subtotal = breakdown.subtotal;
+    const client = DB.get('clients', payment.clientId);
+    const contract = payment.contractId ? DB.get('contracts', payment.contractId) : null;
+    const confirmed = payment.status === 'confirmed';
 
     contentEl.innerHTML = `
       <div class="no-print" style="display:flex; justify-content:flex-end; margin-bottom:18px;">
-        <button type="button" class="btn btn-accent" id="printBtn">🖨️ <span data-i18n="print_invoice"></span></button>
+        <button type="button" class="btn btn-accent" id="printBtn">🖨️ <span data-i18n="print_receipt"></span></button>
       </div>
 
       <div class="card" id="printArea" style="position:relative; overflow:hidden;">
-        ${invoice.status==='paid' ? `
+        ${confirmed ? `
         <div style="position:absolute; top:38px; inset-inline-end:-46px; z-index:5; transform:rotate(35deg); pointer-events:none;">
           <div style="border:3px solid #1E8E5A; color:#1E8E5A; opacity:0.55; font-weight:800; font-size:22px; letter-spacing:2px; padding:6px 60px; text-transform:uppercase;">
-            ${I18N.t('inv_paid')}
+            ${I18N.t('pay_confirmed')}
           </div>
         </div>` : ''}
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:26px; padding-bottom:20px; border-bottom:2px solid var(--navy);">
@@ -62,9 +64,9 @@ if(ctx){
             </div>
           </div>
           <div style="text-align:end;">
-            <div style="font-weight:800; font-size:16px;" data-i18n="invoices"></div>
-            <div class="text-muted" style="font-size:13px;">${invoice.id}</div>
-            <div class="text-muted" style="font-size:12px;">${UI.fmtDate(invoice.date)}</div>
+            <div style="font-weight:800; font-size:16px;" data-i18n="payment_receipt_title"></div>
+            <div class="text-muted" style="font-size:13px;">${payment.id}</div>
+            <div class="text-muted" style="font-size:12px;">${UI.fmtDate(payment.date)}</div>
           </div>
         </div>
 
@@ -93,42 +95,25 @@ if(ctx){
           </div>
         </div>
 
-        <div class="grid grid-3" style="margin-bottom:24px;">
-          <div><div class="text-muted" style="font-size:12px;" data-i18n="invoice_contract"></div><div style="font-weight:700;">${invoice.contractId||'—'}</div></div>
-          <div><div class="text-muted" style="font-size:12px;" data-i18n="invoice_date"></div><div style="font-weight:700;">${UI.fmtDate(invoice.date)}</div></div>
-          <div><div class="text-muted" style="font-size:12px;" data-i18n="invoice_status"></div><div style="font-weight:700;" data-i18n="inv_${invoice.status}"></div></div>
-        </div>
-
-        <div class="table-wrap" style="margin-bottom:18px;">
-          <table>
-            <thead><tr>
-              <th data-i18n="invoice_item"></th><th data-i18n="invoice_qty"></th><th data-i18n="invoice_price"></th><th data-i18n="invoice_line_total"></th>
-            </tr></thead>
-            <tbody>
-              <tr>
-                <td>${invoice.description || I18N.t('invoices')}</td>
-                <td>1</td>
-                <td>${UI.fmtMoney(subtotal, contract && contract.currency)}</td>
-                <td>${UI.fmtMoney(subtotal, contract && contract.currency)}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="grid grid-4" style="margin-bottom:24px;">
+          <div><div class="text-muted" style="font-size:12px;" data-i18n="invoice_contract"></div><div style="font-weight:700;">${payment.contractId||'—'}</div></div>
+          <div><div class="text-muted" style="font-size:12px;" data-i18n="payment_date"></div><div style="font-weight:700;">${UI.fmtDate(payment.date)}</div></div>
+          <div><div class="text-muted" style="font-size:12px;" data-i18n="payment_method"></div><div style="font-weight:700;" data-i18n="${methodLabel[payment.method]||'method_other'}"></div></div>
+          <div><div class="text-muted" style="font-size:12px;" data-i18n="payment_status_col"></div><div style="font-weight:700;" data-i18n="${statusLabel[payment.status]||'pay_review'}"></div></div>
         </div>
 
         <div style="display:flex; justify-content:flex-end;">
           <div style="min-width:260px;">
-            <div style="display:flex; justify-content:space-between; padding:6px 0; font-size:13.5px;">
-              <span class="text-muted" data-i18n="invoice_subtotal"></span><span>${UI.fmtMoney(subtotal, contract && contract.currency)}</span>
-            </div>
-            ${breakdown.taxLines.map(t=>`
-            <div style="display:flex; justify-content:space-between; padding:6px 0; font-size:13.5px;">
-              <span class="text-muted">${t.nameAr} (${t.rate}%)</span><span>${UI.fmtMoney(t.amount, contract && contract.currency)}</span>
-            </div>`).join('')}
             <div style="display:flex; justify-content:space-between; padding:10px 0; border-top:2px solid var(--navy); font-weight:800; font-size:15px;">
-              <span data-i18n="invoice_grand_total"></span><span>${UI.fmtMoney(invoice.amount, contract && contract.currency)}</span>
+              <span data-i18n="payment_amount"></span><span>${UI.fmtMoney(payment.amount, contract && contract.currency)}</span>
             </div>
           </div>
         </div>
+
+        ${payment.invoiceId ? `
+        <div class="no-print" style="margin-top:18px;">
+          <a class="btn btn-outline" href="invoice-template.html?id=${payment.invoiceId}" data-i18n="view_related_invoice"></a>
+        </div>` : ''}
       </div>
     `;
     I18N.apply(contentEl);

@@ -30,7 +30,7 @@ const UI = (function(){
         </div>
         <div class="success-popup-title" data-i18n="done_title"></div>
         <div class="success-popup-msg"></div>
-        <button class="btn btn-primary btn-sm success-popup-ok" data-i18n="ok"></button>
+        <button type="button" class="btn btn-primary btn-sm success-popup-ok" data-i18n="ok"></button>
       </div>`;
     overlay.querySelector('.success-popup-msg').textContent = msg || '';
     document.body.appendChild(overlay);

@@ -9,20 +9,20 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719h">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719i">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719h"></script>
-<script src="assets/js/lists.js?v=20260719h"></script>
-<script src="assets/js/config.js?v=20260719h"></script>
-<script src="assets/js/db.js?v=20260719h"></script>
-<script src="assets/js/billing.js?v=20260719h"></script>
-<script src="assets/js/auth.js?v=20260719h"></script>
-<script src="assets/js/ui.js?v=20260719h"></script>
-<script src="assets/js/layout.js?v=20260719h"></script>
+<script src="assets/js/i18n.js?v=20260719i"></script>
+<script src="assets/js/lists.js?v=20260719i"></script>
+<script src="assets/js/config.js?v=20260719i"></script>
+<script src="assets/js/db.js?v=20260719i"></script>
+<script src="assets/js/billing.js?v=20260719i"></script>
+<script src="assets/js/auth.js?v=20260719i"></script>
+<script src="assets/js/ui.js?v=20260719i"></script>
+<script src="assets/js/layout.js?v=20260719i"></script>
 <script>
 const ctx = LAYOUT.render('dashboard');
 if(ctx){
@@ -74,8 +74,8 @@ if(ctx){
               <td>${u.email}</td>
               <td>${AUTH.roleLabel(u.role)}</td>
               <td class="row-actions">
-                <button class="btn btn-sm btn-accent" data-approve="${u.id}" data-i18n="approve"></button>
-                <button class="btn btn-sm btn-danger" data-reject="${u.id}" data-i18n="reject"></button>
+                <button type="button" class="btn btn-sm btn-accent" data-approve="${u.id}" data-i18n="approve"></button>
+                <button type="button" class="btn btn-sm btn-danger" data-reject="${u.id}" data-i18n="reject"></button>
               </td>
             </tr>`).join('')}
           </tbody>
@@ -106,8 +106,8 @@ if(ctx){
           <option value="" data-i18n="dashboard_filter_contract"></option>
           ${DB.all('contracts').map(c=>`<option value="${c.id}">${c.id}</option>`).join('')}
         </select>
-        <button class="btn btn-outline" id="dPrint">🖨️ <span data-i18n="dashboard_print"></span></button>
-        <button class="btn btn-outline" id="dExport">🖼️ <span data-i18n="dashboard_export_image"></span></button>
+        <button type="button" class="btn btn-outline" id="dPrint">🖨️ <span data-i18n="dashboard_print"></span></button>
+        <button type="button" class="btn btn-outline" id="dExport">🖼️ <span data-i18n="dashboard_export_image"></span></button>
       </div>
       <div id="dashPrintArea">
       <p class="text-muted" style="margin:-6px 0 22px;" data-i18n="dashboard_sub"></p>
@@ -228,7 +228,6 @@ if(ctx){
     const visits = DB.all('visits').filter(v=>v.clientId===user.clientId)
       .filter(v=>v.status==='requested'||v.status==='scheduled'||v.status==='ongoing')
       .sort((a,b)=>a.date.localeCompare(b.date));
-    const activeContract = contracts.find(c=>c.status==='active') || contracts[0];
 
     contentEl.innerHTML = `
       <p class="text-muted" style="margin:-6px 0 22px;" data-i18n="dashboard_sub"></p>
@@ -239,13 +238,16 @@ if(ctx){
       <div class="grid grid-2" style="margin-bottom:22px; align-items:start;">
         <div class="card">
           <div class="card-header"><h3 class="card-title" data-i18n="my_contract_title"></h3></div>
-          ${activeContract ? `
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_id"></span><strong>${activeContract.id}</strong></div>
-              <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_amount"></span><strong>${UI.fmtMoney(activeContract.amount, activeContract.currency)}</strong></div>
-              <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_status"></span><span class="badge badge-success" data-i18n="status_${activeContract.status}"></span></div>
-              <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_visits_total"></span><span>${activeContract.visitsUsed||0} ${I18N.t('visits_used_of')} ${activeContract.visitsUnlimited ? I18N.t('visits_unlimited') : activeContract.visitsTotal}</span></div>
-              <a class="btn btn-outline btn-block" style="margin-top:6px;" href="contract-template.html?id=${activeContract.id}" data-i18n="view_my_contract"></a>
+          ${contracts.length ? `
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              ${contracts.map(c=>`
+                <div style="${contracts.length>1?'padding-bottom:14px; border-bottom:1px solid var(--line);':''}">
+                  <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_id"></span><strong>${c.id}</strong></div>
+                  <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_amount"></span><strong>${UI.fmtMoney(c.amount, c.currency)}</strong></div>
+                  <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_status"></span><span class="badge ${c.status==='active'?'badge-success':'badge-mute'}" data-i18n="status_${c.status}"></span></div>
+                  <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_visits_total"></span><span>${c.visitsUsed||0} ${I18N.t('visits_used_of')} ${c.visitsUnlimited ? I18N.t('visits_unlimited') : c.visitsTotal}</span></div>
+                  <a class="btn btn-outline btn-block" style="margin-top:6px;" href="contract-template.html?id=${c.id}" data-i18n="view_my_contract"></a>
+                </div>`).join('')}
             </div>` : `<div class="empty-state" data-i18n="no_contract"></div>`}
         </div>
         <div class="card">
