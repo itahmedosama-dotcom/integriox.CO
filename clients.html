@@ -9,18 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719j">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719k">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719j"></script>
-<script src="assets/js/lists.js?v=20260719j"></script>
-<script src="assets/js/config.js?v=20260719j"></script>
-<script src="assets/js/db.js?v=20260719j"></script>
-<script src="assets/js/auth.js?v=20260719j"></script>
-<script src="assets/js/ui.js?v=20260719j"></script>
-<script src="assets/js/layout.js?v=20260719j"></script>
+<script src="assets/js/i18n.js?v=20260719k"></script>
+<script src="assets/js/lists.js?v=20260719k"></script>
+<script src="assets/js/config.js?v=20260719k"></script>
+<script src="assets/js/db.js?v=20260719k"></script>
+<script src="assets/js/billing.js?v=20260719k"></script>
+<script src="assets/js/auth.js?v=20260719k"></script>
+<script src="assets/js/ui.js?v=20260719k"></script>
+<script src="assets/js/layout.js?v=20260719k"></script>
 <script>
 const ctx = LAYOUT.render('clients');
 if(ctx){
@@ -35,6 +36,14 @@ if(ctx){
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="text" id="searchInput" data-i18n-ph="search">
         </div>
+        <select id="countryFilter">
+          <option value="" data-i18n="all"></option>
+          ${Array.from(new Set(clients.map(c=>c.country).filter(Boolean))).sort().map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+        <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" id="activeOnlyFilter" style="width:auto;">
+          <span data-i18n="clients_active_contract_only"></span>
+        </label>
         <button type="button" class="btn btn-primary" id="addBtn" data-i18n="add_client"></button>
       </div>
       <div class="card">
@@ -49,7 +58,9 @@ if(ctx){
           </table>
         </div>
         <div id="emptyState" class="empty-state hidden">
-          <div data-i18n="no_data"></div>
+          <div style="font-size:32px; margin-bottom:8px;">👥</div>
+          <div data-i18n="no_clients_yet"></div>
+          <button type="button" class="btn btn-primary btn-sm" id="emptyAddBtn" style="margin-top:10px;" data-i18n="add_client"></button>
         </div>
       </div>
     `;
@@ -58,11 +69,16 @@ if(ctx){
 
     function draw(filter){
       const f = (filter||'').toLowerCase();
+      const countryVal = contentEl.querySelector('#countryFilter').value;
+      const activeOnly = contentEl.querySelector('#activeOnlyFilter').checked;
       const list = clients.filter(c=>{
         const nameAr = (c.nameAr||c.name||'');
         const nameEn = (c.nameEn||'');
-        return !f || nameAr.toLowerCase().includes(f) || nameEn.toLowerCase().includes(f) ||
+        const matchesText = !f || nameAr.toLowerCase().includes(f) || nameEn.toLowerCase().includes(f) ||
           (c.country||'').toLowerCase().includes(f) || (c.phone||'').includes(f) || (c.email||'').toLowerCase().includes(f);
+        const matchesCountry = !countryVal || c.country === countryVal;
+        const matchesActive = !activeOnly || contracts.some(k=>k.clientId===c.id && k.status==='active');
+        return matchesText && matchesCountry && matchesActive;
       });
       contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
       rowsEl.innerHTML = list.map(c=>{
@@ -76,8 +92,11 @@ if(ctx){
           <td>${c.email||'—'}</td>
           <td>${c.address||'—'}</td>
           <td>${c.locationLink ? `<a href="${c.locationLink}" target="_blank" rel="noopener">📍</a>` : '—'}</td>
-          <td><span class="badge badge-info">${count}</span></td>
+          <td><a href="contracts.html?client=${c.id}" class="badge badge-info" style="text-decoration:none;">${count}</a></td>
           <td class="row-actions">
+            <a class="btn btn-sm btn-outline" href="contracts.html?client=${c.id}" title="${I18N.t('nav_contracts')}">📋</a>
+            <a class="btn btn-sm btn-outline" href="visits.html?client=${c.id}" title="${I18N.t('nav_visits')}">🛠️</a>
+            <a class="btn btn-sm btn-outline" href="invoices.html?client=${c.id}" title="${I18N.t('nav_invoices')}">🧾</a>
             <button type="button" class="btn btn-sm btn-outline" data-edit="${c.id}" data-i18n="edit"></button>
             <button type="button" class="btn btn-sm btn-danger" data-del="${c.id}" data-i18n="delete"></button>
           </td>
@@ -103,7 +122,10 @@ if(ctx){
     }
 
     contentEl.querySelector('#searchInput').addEventListener('input', (e)=>draw(e.target.value));
+    contentEl.querySelector('#countryFilter').addEventListener('change', ()=>draw(contentEl.querySelector('#searchInput').value));
+    contentEl.querySelector('#activeOnlyFilter').addEventListener('change', ()=>draw(contentEl.querySelector('#searchInput').value));
     contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm(null));
+    contentEl.querySelector('#emptyAddBtn').addEventListener('click', ()=>openForm(null));
     draw('');
   }
 

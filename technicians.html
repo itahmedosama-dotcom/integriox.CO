@@ -9,18 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719j">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719k">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719j"></script>
-<script src="assets/js/lists.js?v=20260719j"></script>
-<script src="assets/js/config.js?v=20260719j"></script>
-<script src="assets/js/db.js?v=20260719j"></script>
-<script src="assets/js/auth.js?v=20260719j"></script>
-<script src="assets/js/ui.js?v=20260719j"></script>
-<script src="assets/js/layout.js?v=20260719j"></script>
+<script src="assets/js/i18n.js?v=20260719k"></script>
+<script src="assets/js/lists.js?v=20260719k"></script>
+<script src="assets/js/config.js?v=20260719k"></script>
+<script src="assets/js/db.js?v=20260719k"></script>
+<script src="assets/js/billing.js?v=20260719k"></script>
+<script src="assets/js/auth.js?v=20260719k"></script>
+<script src="assets/js/ui.js?v=20260719k"></script>
+<script src="assets/js/layout.js?v=20260719k"></script>
 <script>
 const ctx = LAYOUT.render('technicians');
 if(ctx){
@@ -49,6 +50,7 @@ if(ctx){
       contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
       cardsEl.innerHTML = list.map(t=>{
         const count = visits.filter(v=>v.techId===t.id).length;
+        const openCount = visits.filter(v=>v.techId===t.id && (v.status==='requested'||v.status==='scheduled'||v.status==='ongoing')).length;
         return `<div class="card">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
             <div class="avatar" style="width:46px;height:46px;font-size:15px;">${UI.initials(t.name)}</div>
@@ -65,7 +67,10 @@ if(ctx){
             <span class="text-muted" data-i18n="tech_nationality"></span><span>${t.nationality||'—'}</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;">
-            <span class="text-muted" data-i18n="tech_visits_count"></span><span class="badge badge-info">${count}</span>
+            <span class="text-muted" data-i18n="tech_visits_count"></span><a href="visits.html?tech=${t.id}" class="badge badge-info" style="text-decoration:none;">${count}</a>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;">
+            <span class="text-muted" data-i18n="tech_open_workload"></span><span class="badge ${openCount>3?'badge-warning':'badge-mute'}">${openCount}</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:14px;">
             <span class="text-muted" data-i18n="tech_rating"></span><span>⭐ ${t.rating||'—'}</span>
@@ -112,6 +117,7 @@ if(ctx){
           <div class="field"><label data-i18n="tech_specialty"></label><input type="text" id="fSpec" value="${t?t.specialty:''}"></div>
           <div class="field"><label data-i18n="tech_nationality"></label><select id="fNationality">${LISTS.nationalityOptions(t?(t.nationality||''):'')}</select></div>
         </div>
+        <div class="field"><label data-i18n="tech_rating"></label><input type="number" id="fRating" min="0" max="5" step="0.1" value="${t?(t.rating||0):0}"></div>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
@@ -130,13 +136,14 @@ if(ctx){
         email: overlay.querySelector('#fEmail').value.trim(),
         specialty: overlay.querySelector('#fSpec').value.trim(),
         nationality: overlay.querySelector('#fNationality').value,
+        rating: Number(overlay.querySelector('#fRating').value || 0),
       };
       if(!data.name){ UI.toast(I18N.t('err_required'), 'error'); return; }
       if(editing){
         DB.update('technicians', t.id, data);
         DB.logActivity('تم تعديل بيانات الفني ' + data.name, 'Technician updated: ' + data.name, 'technician');
       } else {
-        const newTech = DB.insert('technicians', { ...data, rating:0 });
+        const newTech = DB.insert('technicians', data);
         DB.logActivity('تمت إضافة فني جديد ' + data.name, 'New technician added: ' + data.name, 'technician');
 
         // Every technician added from this screen automatically gets a

@@ -303,8 +303,8 @@ html[dir="rtl"] .main{ margin-right:var(--sidebar-w); }
 .search-box input{ padding-inline-start:38px; }
 .search-box svg{ position:absolute; top:50%; transform:translateY(-50%); inset-inline-start:12px; width:16px; height:16px; color:var(--ink-mute); }
 
-.tabs{ display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:20px; }
-.tabs button{ background:none; border:none; padding:12px 18px; font-weight:700; font-size:13.5px; color:var(--ink-mute); cursor:pointer; border-bottom:2.5px solid transparent; margin-bottom:-1px; }
+.tabs{ display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:20px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin; }
+.tabs button{ background:none; border:none; padding:12px 18px; font-weight:700; font-size:13.5px; color:var(--ink-mute); cursor:pointer; border-bottom:2.5px solid transparent; margin-bottom:-1px; white-space:nowrap; flex-shrink:0; }
 .tabs button.active{ color:var(--navy); border-color:var(--blue); }
 
 .chart-box{ height:260px; }
@@ -373,6 +373,21 @@ html[dir="rtl"] .pwa-install-float{ padding:11px 14px 11px 16px; }
   .pwa-install-float .pwa-install-label{ display:none; }
   .pwa-install-float{ padding:11px; bottom:80px; }
 }
+
+/* ---------- notification bell dropdown ---------- */
+.notif-panel{
+  position:absolute; top:calc(100% + 10px); inset-inline-end:0; z-index:300;
+  width:280px; max-height:320px; overflow-y:auto; background:var(--surface);
+  border:1px solid var(--line); border-radius:var(--radius-sm); box-shadow:var(--shadow-lg);
+  padding:6px;
+}
+.notif-item{
+  display:block; padding:10px 12px; border-radius:8px; font-size:12.5px; color:var(--ink);
+  text-decoration:none; border-bottom:1px solid var(--line);
+}
+.notif-item:last-child{ border-bottom:none; }
+.notif-item:hover{ background:var(--sky-50); }
+.notif-empty{ padding:16px; text-align:center; font-size:12.5px; color:var(--ink-mute); }
 
 /* ---------- dashboard quick-action float (request visit / my visits) ---------- */
 .quick-action-float{

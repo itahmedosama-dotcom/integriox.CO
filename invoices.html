@@ -9,22 +9,22 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719j">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719k">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719j"></script>
-<script src="assets/js/lists.js?v=20260719j"></script>
-<script src="assets/js/config.js?v=20260719j"></script>
-<script src="assets/js/db.js?v=20260719j"></script>
-<script src="assets/js/billing.js?v=20260719j"></script>
-<script src="assets/js/auth.js?v=20260719j"></script>
-<script src="assets/js/ui.js?v=20260719j"></script>
-<script src="assets/js/layout.js?v=20260719j"></script>
+<script src="assets/js/i18n.js?v=20260719k"></script>
+<script src="assets/js/lists.js?v=20260719k"></script>
+<script src="assets/js/config.js?v=20260719k"></script>
+<script src="assets/js/db.js?v=20260719k"></script>
+<script src="assets/js/billing.js?v=20260719k"></script>
+<script src="assets/js/auth.js?v=20260719k"></script>
+<script src="assets/js/ui.js?v=20260719k"></script>
+<script src="assets/js/layout.js?v=20260719k"></script>
 <script>
 const ctx = LAYOUT.render('invoices');
-if(ctx){
+if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
   const { user, contentEl } = ctx;
   const isAdmin = user.role === 'admin';
   const statusBadge = { paid:'badge-success', unpaid:'badge-warning' };
@@ -33,6 +33,8 @@ if(ctx){
     if(isAdmin) BILLING.runAutoInvoices();
     let invoices = DB.all('invoices');
     if(!isAdmin) invoices = invoices.filter(i=>i.clientId===user.clientId);
+    const qClientId = new URLSearchParams(window.location.search).get('client');
+    if(qClientId) invoices = invoices.filter(i=>i.clientId===qClientId);
     const clients = DB.all('clients');
     const contracts = DB.all('contracts');
 
@@ -43,6 +45,7 @@ if(ctx){
           <option value="unpaid" data-i18n="inv_unpaid"></option>
           <option value="paid" data-i18n="inv_paid"></option>
         </select>
+        ${isAdmin ? `<button type="button" class="btn btn-outline" id="exportCsvBtn">⬇️ <span data-i18n="export_csv"></span></button>` : ''}
         ${isAdmin ? `<button type="button" class="btn btn-primary" id="addBtn" data-i18n="add_invoice"></button>` : ''}
       </div>
       <div class="card">
@@ -98,7 +101,23 @@ if(ctx){
     }
     contentEl.querySelector('#statusFilter').addEventListener('change', draw);
     if(isAdmin) contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm(clients, contracts));
+    if(isAdmin) contentEl.querySelector('#exportCsvBtn').addEventListener('click', ()=>exportInvoicesCsv(invoices, clients));
     draw();
+  }
+
+  function exportInvoicesCsv(invoices, clients){
+    const headers = ['ID','Client','Contract','Amount','Date','Status'];
+    const rows = invoices.map(i=>{
+      const client = clients.find(c=>c.id===i.clientId);
+      return [i.id, client?client.name:'', i.contractId||'', i.amount, i.date, i.status];
+    });
+    const csv = [headers, ...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `invoices-${DB.todayISO()}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   function openForm(clients, contracts, invoice){

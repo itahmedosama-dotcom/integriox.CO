@@ -81,7 +81,10 @@ const LAYOUT = (function(){
               <button data-lang="ar">AR</button>
               <button data-lang="en">EN</button>
             </div>
-            <button class="icon-btn" title="notifications">${ICONS.bell}<span class="dot"></span></button>
+            <div class="notif-wrap" style="position:relative;">
+              <button type="button" class="icon-btn" id="notifBtn" title="notifications">${ICONS.bell}<span class="dot hidden" id="notifDot"></span></button>
+              <div class="notif-panel hidden" id="notifPanel"></div>
+            </div>
             <button class="icon-btn" id="logoutBtn" title="logout">${ICONS.logout}</button>
           </div>
         </div>
@@ -106,7 +109,52 @@ const LAYOUT = (function(){
     document.addEventListener('lang-changed', ()=>{ UI.mountFooter(shell.querySelector('.main')); UI.mountWhatsapp(); });
     if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
     shell.querySelector('#userChipBtn').addEventListener('click', ()=> openProfileModal(user));
+    mountNotifications(shell, user);
     return { user, contentEl: shell.querySelector('#pageContent') };
+  }
+
+  function computeNotifications(user){
+    const items = [];
+    if(user.role === 'admin'){
+      const pending = DB.all('users').filter(u=>u.status==='pending').length;
+      if(pending) items.push({ textAr:`${pending} حساب بانتظار الموافقة`, textEn:`${pending} account(s) awaiting approval`, href:'settings.html' });
+      const overdue = (window.BILLING ? BILLING.overdueInvoices() : []).length;
+      if(overdue) items.push({ textAr:`${overdue} فاتورة متأخرة عن السداد`, textEn:`${overdue} overdue invoice(s)`, href:'dashboard.html' });
+      const newComplaints = DB.all('complaints').filter(c=>c.status==='open').length;
+      if(newComplaints) items.push({ textAr:`${newComplaints} شكوى جديدة`, textEn:`${newComplaints} new complaint(s)`, href:'complaints.html' });
+      const newVisits = DB.all('visits').filter(v=>v.status==='requested').length;
+      if(newVisits) items.push({ textAr:`${newVisits} طلب زيارة جديد`, textEn:`${newVisits} new visit request(s)`, href:'visits.html' });
+      const resetRequests = DB.all('users').filter(u=>u.passwordResetRequested).length;
+      if(resetRequests) items.push({ textAr:`${resetRequests} طلب إعادة تعيين كلمة مرور`, textEn:`${resetRequests} password reset request(s)`, href:'settings.html' });
+    } else if(user.role === 'client'){
+      const overdue = (window.BILLING ? BILLING.overdueInvoices(user.clientId) : []).length;
+      if(overdue) items.push({ textAr:`${overdue} فاتورة متأخرة عن السداد`, textEn:`${overdue} overdue invoice(s)`, href:'invoices.html' });
+    } else if(user.role === 'technician'){
+      const visits = DB.all('visits').filter(v=> user.canViewAllVisits ? v.status==='requested' : (v.techId===user.techId && v.status==='requested'));
+      if(visits.length) items.push({ textAr:`${visits.length} طلب زيارة جديد`, textEn:`${visits.length} new visit request(s)`, href:'visits.html' });
+    }
+    return items;
+  }
+
+  function mountNotifications(shell, user){
+    const btn = shell.querySelector('#notifBtn');
+    const dot = shell.querySelector('#notifDot');
+    const panel = shell.querySelector('#notifPanel');
+    const items = computeNotifications(user);
+    dot.classList.toggle('hidden', items.length === 0);
+    function draw(){
+      panel.innerHTML = items.length
+        ? items.map(it=>`<a class="notif-item" href="${it.href}">${I18N.getLang()==='ar'?it.textAr:it.textEn}</a>`).join('')
+        : `<div class="notif-empty">${I18N.t('no_notifications')}</div>`;
+    }
+    draw();
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      panel.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e)=>{
+      if(!panel.contains(e.target) && e.target!==btn) panel.classList.add('hidden');
+    });
   }
 
   // Lets any logged-in user edit their own name/email/password from the
@@ -155,5 +203,19 @@ const LAYOUT = (function(){
     });
   }
 
-  return { render };
+  // Blocks a page for roles that shouldn't access it at all (nav hiding
+  // alone doesn't stop someone from typing the URL directly) — e.g.
+  // technicians have no business on the financial pages (payments,
+  // invoices, statements). Redirects to the dashboard and returns false
+  // when blocked, so the caller can bail out immediately.
+  function guardRoles(ctx, allowedRoles){
+    if(!ctx) return false;
+    if(!allowedRoles.includes(ctx.user.role)){
+      window.location.href = 'dashboard.html';
+      return false;
+    }
+    return true;
+  }
+
+  return { render, guardRoles };
 })();

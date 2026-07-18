@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719j">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719k">
 </head>
 <body>
 
@@ -106,6 +106,7 @@
         <input type="text" id="loginCaptchaInput" dir="ltr" data-i18n-ph="captcha_label" autocomplete="off" required>
       </div>
       <button class="btn btn-primary btn-block" type="submit" data-i18n="btn_login"></button>
+      <button type="button" class="link-btn" id="forgotPasswordLink" data-i18n="forgot_password" style="display:block; margin:12px auto 0; background:none; border:none; color:var(--blue); font-size:12.5px; font-weight:700; cursor:pointer;"></button>
     </form>
 
     <!-- REGISTER FORM -->
@@ -181,12 +182,12 @@
   </div>
 </div>
 
-<script src="assets/js/i18n.js?v=20260719j"></script>
-<script src="assets/js/lists.js?v=20260719j"></script>
-<script src="assets/js/config.js?v=20260719j"></script>
-<script src="assets/js/db.js?v=20260719j"></script>
-<script src="assets/js/auth.js?v=20260719j"></script>
-<script src="assets/js/ui.js?v=20260719j"></script>
+<script src="assets/js/i18n.js?v=20260719k"></script>
+<script src="assets/js/lists.js?v=20260719k"></script>
+<script src="assets/js/config.js?v=20260719k"></script>
+<script src="assets/js/db.js?v=20260719k"></script>
+<script src="assets/js/auth.js?v=20260719k"></script>
+<script src="assets/js/ui.js?v=20260719k"></script>
 <script>
   // if already logged in, go straight to dashboard
   if(AUTH.currentUser()) window.location.href = 'dashboard.html';
@@ -325,6 +326,37 @@
         if(regLogoWrap && group.contains(document.querySelector('input[name=regRole]'))){
           regLogoWrap.style.display = card.querySelector('input').value==='client' ? '' : 'none';
         }
+      });
+    });
+
+    document.getElementById('forgotPasswordLink').addEventListener('click', ()=>{
+      const overlay = UI.openModal(`
+        <div class="modal-head"><h3 data-i18n="forgot_password"></h3><button type="button" class="close-x" id="fpClose">&times;</button></div>
+        <div class="modal-body">
+          <p class="hint" style="margin-bottom:14px;" data-i18n="forgot_password_hint"></p>
+          <div class="field"><label data-i18n="login_identifier"></label><input type="text" id="fpEmail"></div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-outline" id="fpCancel" data-i18n="cancel"></button>
+          <button type="button" class="btn btn-primary" id="fpSend" data-i18n="forgot_password_send"></button>
+        </div>
+      `);
+      I18N.apply(overlay);
+      overlay.querySelector('#fpClose').addEventListener('click', UI.closeModal);
+      overlay.querySelector('#fpCancel').addEventListener('click', UI.closeModal);
+      overlay.querySelector('#fpSend').addEventListener('click', ()=>{
+        const id = overlay.querySelector('#fpEmail').value.trim().toLowerCase();
+        const target = DB.all('users').find(u=>
+          (u.email && u.email.toLowerCase()===id) || (u.username && u.username.toLowerCase()===id)
+        );
+        if(target){
+          DB.update('users', target.id, { passwordResetRequested:true, passwordResetRequestedAt: DB.todayISO() });
+          DB.logActivity('طلب إعادة تعيين كلمة مرور لـ ' + target.name, 'Password reset requested for ' + target.name, 'user');
+        }
+        // Same message either way (found or not) so this can't be used to
+        // probe which emails/usernames exist in the system.
+        UI.closeModal();
+        UI.toast(I18N.t('forgot_password_sent'), 'success');
       });
     });
 

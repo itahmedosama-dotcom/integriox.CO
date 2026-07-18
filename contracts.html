@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719j">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719k">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719j"></script>
-<script src="assets/js/lists.js?v=20260719j"></script>
-<script src="assets/js/config.js?v=20260719j"></script>
-<script src="assets/js/db.js?v=20260719j"></script>
-<script src="assets/js/billing.js?v=20260719j"></script>
-<script src="assets/js/auth.js?v=20260719j"></script>
-<script src="assets/js/ui.js?v=20260719j"></script>
-<script src="assets/js/layout.js?v=20260719j"></script>
+<script src="assets/js/i18n.js?v=20260719k"></script>
+<script src="assets/js/lists.js?v=20260719k"></script>
+<script src="assets/js/config.js?v=20260719k"></script>
+<script src="assets/js/db.js?v=20260719k"></script>
+<script src="assets/js/billing.js?v=20260719k"></script>
+<script src="assets/js/auth.js?v=20260719k"></script>
+<script src="assets/js/ui.js?v=20260719k"></script>
+<script src="assets/js/layout.js?v=20260719k"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -35,12 +35,14 @@ if(ctx){
     let contracts = DB.all('contracts');
     if(!isAdmin) contracts = contracts.filter(c=>c.clientId===user.clientId);
     const clients = DB.all('clients');
+    const qClientId = new URLSearchParams(window.location.search).get('client');
+    const qClient = qClientId ? clients.find(c=>c.id===qClientId) : null;
 
     contentEl.innerHTML = `
       <div class="filters-bar">
         <div class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          <input type="text" id="searchInput" data-i18n-ph="search">
+          <input type="text" id="searchInput" data-i18n-ph="search" value="${qClient ? qClient.name : ''}">
         </div>
         <select id="statusFilter">
           <option value="" data-i18n="all"></option>
@@ -79,13 +81,19 @@ if(ctx){
       contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
       rowsEl.innerHTML = list.map(c=>{
         const client = clients.find(x=>x.id===c.clientId);
-        return `<tr>
+        const daysLeft = (c.status==='active' && c.periodType==='fixed' && c.endDate)
+          ? Math.round((new Date(c.endDate) - new Date(DB.todayISO())) / 86400000) : null;
+        const nearRenewal = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30;
+        return `<tr ${nearRenewal ? 'style="background:var(--warning-bg);"' : ''}>
           <td><strong>${c.id}</strong></td>
           <td>${client?client.name:'—'}</td>
           <td>${UI.fmtMoney(c.amount, c.currency)}</td>
           <td><span data-i18n="${typeLabel[c.contractType]}"></span></td>
           <td>${c.durationMonths} <span data-i18n="months"></span> · <span data-i18n="${c.periodType==='open'?'period_open':'period_fixed'}"></span></td>
-          <td><span class="badge ${statusBadge[c.status]}" data-i18n="status_${c.status==='active'?'active':c.status}"></span></td>
+          <td>
+            <span class="badge ${statusBadge[c.status]}" data-i18n="status_${c.status==='active'?'active':c.status}"></span>
+            ${nearRenewal ? `<span class="badge" style="background:#F5C244; color:#5a3d00;">${I18N.t('contract_renewal_soon')} (${daysLeft})</span>` : ''}
+          </td>
           <td class="row-actions">
             <a class="btn btn-sm btn-outline" href="contract-template.html?id=${c.id}" data-i18n="view_contract"></a>
             ${isAdmin?`<button type="button" class="btn btn-sm btn-outline" data-edit="${c.id}" data-i18n="edit"></button>`:''}
@@ -116,6 +124,7 @@ if(ctx){
     const overlay = UI.openModal(`
       <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_contract'}"></h3><button type="button" class="close-x" id="mClose">&times;</button></div>
       <div class="modal-body">
+        <h4 style="margin:0 0 12px; font-size:12.5px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:.5px;" data-i18n="contract_section_basic"></h4>
         <div class="field">
           <label data-i18n="contract_client"></label>
           <select id="fClient">${clients.map(c=>`<option value="${c.id}" ${editing && contract.clientId===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
@@ -130,6 +139,7 @@ if(ctx){
             </div>
           </div>
         </div>
+        <h4 style="margin:18px 0 12px; font-size:12.5px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:.5px;" data-i18n="contract_section_period"></h4>
         <div class="field"><label data-i18n="contract_duration"></label><input type="number" id="fDuration" min="1" value="${editing?contract.durationMonths:12}"></div>
         <div class="field">
           <label data-i18n="contract_period_type"></label>
@@ -168,6 +178,7 @@ if(ctx){
             <label class="radio-card ${editing && contract.paymentTerms==='deferred'?'active':''}"><input type="radio" name="fPay" value="deferred" ${editing && contract.paymentTerms==='deferred'?'checked':''}><span data-i18n="pay_deferred"></span></label>
           </div>
         </div>
+        <h4 style="margin:6px 0 12px; font-size:12.5px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:.5px;" data-i18n="contract_section_payment"></h4>
         <div class="field ${editing && contract.paymentTerms==='deferred' ? '' : 'hidden'}" id="dueDayWrap">
           <label data-i18n="billing_cycle"></label>
           <div class="radio-group" style="margin-bottom:12px;">
@@ -308,6 +319,21 @@ if(ctx){
         data.createdAt = DB.todayISO();
         DB.insert('contracts', data);
         DB.logActivity('تم إنشاء عقد جديد رقم ' + data.id, 'New contract created: ' + data.id, 'contract');
+
+        // Upfront contracts automatically get a pending payment sent to
+        // Payments for confirmation — confirming it there auto-issues a
+        // matching confirmed invoice. Deferred (monthly/yearly) contracts
+        // are billed separately by the recurring auto-invoice system, so
+        // skip creating an upfront payment for those.
+        if(data.paymentTerms === 'upfront' && data.amount > 0){
+          const payment = {
+            id: 'PAY-' + (5000 + DB.all('payments').length + 1),
+            contractId: data.id, clientId: data.clientId,
+            amount: data.amount, method: 'bank', date: DB.todayISO(), status: 'review',
+          };
+          DB.insert('payments', payment);
+          DB.logActivity('تم إنشاء دفعة بانتظار التأكيد للعقد ' + data.id, 'Pending payment created for contract ' + data.id, 'payment');
+        }
       }
       UI.closeModal(); UI.toast(I18N.t('saved_ok'),'success'); render();
     });
