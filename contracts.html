@@ -9,18 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719e">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719e"></script>
-<script src="assets/js/lists.js?v=20260719e"></script>
-<script src="assets/js/config.js?v=20260719e"></script>
-<script src="assets/js/db.js?v=20260719e"></script>
-<script src="assets/js/auth.js?v=20260719e"></script>
-<script src="assets/js/ui.js?v=20260719e"></script>
-<script src="assets/js/layout.js?v=20260719e"></script>
+<script src="assets/js/i18n.js?v=20260719f"></script>
+<script src="assets/js/lists.js?v=20260719f"></script>
+<script src="assets/js/config.js?v=20260719f"></script>
+<script src="assets/js/db.js?v=20260719f"></script>
+<script src="assets/js/billing.js?v=20260719f"></script>
+<script src="assets/js/auth.js?v=20260719f"></script>
+<script src="assets/js/ui.js?v=20260719f"></script>
+<script src="assets/js/layout.js?v=20260719f"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -135,13 +136,32 @@ if(ctx){
           <div class="field"><label data-i18n="contract_start"></label><input type="date" id="fStart" value="${DB.todayISO()}"></div>
           <div class="field"><label data-i18n="contract_end"></label><input type="date" id="fEnd"></div>
         </div>
-        <div class="field"><label data-i18n="contract_visits_total"></label><input type="number" id="fVisits" min="0" value="12"></div>
+        <div class="field">
+          <label data-i18n="contract_visits_total"></label>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <input type="number" id="fVisits" min="0" value="12" style="flex:1;">
+            <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer;">
+              <input type="checkbox" id="fVisitsUnlimited" style="width:auto;">
+              <span data-i18n="visits_unlimited"></span>
+            </label>
+          </div>
+        </div>
         <div class="field">
           <label data-i18n="payment_terms"></label>
           <div class="radio-group">
             <label class="radio-card active"><input type="radio" name="fPay" value="upfront" checked><span data-i18n="pay_upfront"></span></label>
             <label class="radio-card"><input type="radio" name="fPay" value="deferred"><span data-i18n="pay_deferred"></span></label>
           </div>
+        </div>
+        <div class="field hidden" id="dueDayWrap">
+          <label data-i18n="payment_due_day"></label>
+          <input type="number" id="fDueDay" min="1" max="28" value="1">
+          <p class="hint" data-i18n="payment_due_day_hint" style="margin-top:4px;"></p>
+        </div>
+        <div class="field">
+          <label data-i18n="contract_taxes"></label>
+          <div id="taxCheckboxes" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+          <p class="hint" data-i18n="select_taxes_hint" style="margin-top:6px;"></p>
         </div>
       </div>
       <div class="modal-foot">
@@ -150,12 +170,36 @@ if(ctx){
       </div>
     `);
     I18N.apply(overlay);
+
+    const enabledTaxes = (DB.getSettings().taxes || []).filter(t=>t.enabled);
+    const taxBox = overlay.querySelector('#taxCheckboxes');
+    if(!enabledTaxes.length){
+      taxBox.innerHTML = `<span class="text-muted" style="font-size:12.5px;" data-i18n="contract_no_tax"></span>`;
+      I18N.apply(taxBox);
+    } else {
+      taxBox.innerHTML = enabledTaxes.map(t=>`
+        <label style="display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:99px; padding:6px 12px; cursor:pointer; font-size:12.5px;">
+          <input type="checkbox" value="${t.id}" style="width:auto;">
+          ${I18N.getLang()==='ar' ? t.countryAr : (t.countryEn||t.countryAr)} — ${t.nameAr} ${t.rate}%
+        </label>`).join('');
+    }
+
+    const dueDayWrap = overlay.querySelector('#dueDayWrap');
+
+    const visitsInput = overlay.querySelector('#fVisits');
+    overlay.querySelector('#fVisitsUnlimited').addEventListener('change', (e)=>{
+      visitsInput.disabled = e.target.checked;
+    });
     overlay.querySelectorAll('.radio-card').forEach(card=>{
       card.addEventListener('click', ()=>{
         const group = card.closest('.radio-group');
         group.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
         card.classList.add('active');
-        card.querySelector('input').checked = true;
+        const input = card.querySelector('input');
+        input.checked = true;
+        if(input.name === 'fPay'){
+          dueDayWrap.classList.toggle('hidden', input.value !== 'deferred');
+        }
       });
     });
     overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
@@ -163,6 +207,9 @@ if(ctx){
     overlay.querySelector('#mSave').addEventListener('click', ()=>{
       const contracts = DB.all('contracts');
       const nextNum = 1001 + contracts.length;
+      const visitsUnlimited = overlay.querySelector('#fVisitsUnlimited').checked;
+      const payTerms = overlay.querySelector('input[name=fPay]:checked').value;
+      const taxIds = Array.from(taxBox.querySelectorAll('input[type=checkbox]:checked')).map(cb=>cb.value);
       const data = {
         id: 'CT-' + nextNum,
         clientId: overlay.querySelector('#fClient').value,
@@ -172,9 +219,12 @@ if(ctx){
         contractType: overlay.querySelector('#fType').value,
         startDate: overlay.querySelector('#fStart').value,
         endDate: overlay.querySelector('#fEnd').value,
-        visitsTotal: Number(overlay.querySelector('#fVisits').value||0),
+        visitsTotal: visitsUnlimited ? null : Number(visitsInput.value||0),
+        visitsUnlimited,
         visitsUsed: 0,
-        paymentTerms: overlay.querySelector('input[name=fPay]:checked').value,
+        paymentTerms: payTerms,
+        paymentDueDay: payTerms==='deferred' ? Number(overlay.querySelector('#fDueDay').value||1) : null,
+        taxIds,
         status: 'active',
         signature: null,
         createdAt: DB.todayISO(),

@@ -36,6 +36,16 @@ const DB = (function(){
         companyAddress: '',
         companyCr: '',
         companyTaxNumber: '',
+        // Per-country tax definitions — editable from Settings → الضرائب.
+        // Seeded from LISTS.COUNTRIES with a sensible Saudi VAT default;
+        // everything else starts disabled at 0% until the admin fills it in.
+        taxes: (window.LISTS ? LISTS.COUNTRIES : []).filter(c=>c.ar!=='أخرى').map(c=>({
+          id: c.ar,
+          countryAr: c.ar, countryEn: c.en,
+          nameAr: 'ضريبة القيمة المضافة', nameEn: 'VAT',
+          rate: c.ar==='السعودية' ? 15 : 0,
+          enabled: c.ar==='السعودية',
+        })),
         sheetUrl: cfg.sheetUrl || '',
         driveFolderId: '',
         apiKeyEnc: cfg.apiKey ? encodeSecret(cfg.apiKey) : '',
@@ -190,7 +200,7 @@ const DB = (function(){
           if(col==='settings') return;
           merged[col] = (remote[col]||[]).map(hydrateRow);
         });
-        merged.settings = Object.assign({}, data.settings, remote.settings||{});
+        merged.settings = hydrateRow(Object.assign({}, data.settings, remote.settings||{}));
         save(merged);
         return merged;
       });

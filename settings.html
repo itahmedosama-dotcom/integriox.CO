@@ -9,18 +9,18 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719e">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719e"></script>
-<script src="assets/js/lists.js?v=20260719e"></script>
-<script src="assets/js/config.js?v=20260719e"></script>
-<script src="assets/js/db.js?v=20260719e"></script>
-<script src="assets/js/auth.js?v=20260719e"></script>
-<script src="assets/js/ui.js?v=20260719e"></script>
-<script src="assets/js/layout.js?v=20260719e"></script>
+<script src="assets/js/i18n.js?v=20260719f"></script>
+<script src="assets/js/lists.js?v=20260719f"></script>
+<script src="assets/js/config.js?v=20260719f"></script>
+<script src="assets/js/db.js?v=20260719f"></script>
+<script src="assets/js/auth.js?v=20260719f"></script>
+<script src="assets/js/ui.js?v=20260719f"></script>
+<script src="assets/js/layout.js?v=20260719f"></script>
 <script>
 const ctx = LAYOUT.render('settings');
 if(ctx){
@@ -36,6 +36,7 @@ if(ctx){
         <button data-tab="users" data-i18n="settings_tab_users"></button>
         <button data-tab="approvals" data-i18n="pending_approvals"></button>
         <button data-tab="terms" data-i18n="terms_settings"></button>
+        <button data-tab="taxes" data-i18n="settings_tab_taxes"></button>
         <button data-tab="integration" data-i18n="integration_settings"></button>
         <button data-tab="backup" data-i18n="settings_tab_backup"></button>
         <button data-tab="footer" data-i18n="footer_settings"></button>
@@ -100,6 +101,26 @@ if(ctx){
           <p class="hint" data-i18n="terms_hint" style="margin-bottom:12px;"></p>
           <textarea id="sTerms" style="min-height:260px;">${settings.terms}</textarea>
           <button class="btn btn-primary" id="saveTerms" style="margin-top:14px;" data-i18n="save_changes"></button>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="taxes">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title" data-i18n="settings_tab_taxes"></h3></div>
+          <p class="hint" style="margin-bottom:14px;" data-i18n="taxes_hint"></p>
+          <div class="search-box" style="max-width:280px; margin-bottom:12px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="taxSearch" data-i18n-ph="search">
+          </div>
+          <div class="table-wrap" style="max-height:480px; overflow-y:auto;">
+            <table>
+              <thead><tr>
+                <th data-i18n="tax_country"></th><th data-i18n="tax_name"></th><th data-i18n="tax_rate"></th><th data-i18n="tax_enabled"></th>
+              </tr></thead>
+              <tbody id="taxRows"></tbody>
+            </table>
+          </div>
+          <button class="btn btn-primary" id="saveTaxes" style="margin-top:14px;" data-i18n="save_changes"></button>
         </div>
       </div>
 
@@ -683,9 +704,47 @@ if(ctx){
       draw();
     }
 
+    function renderTaxes(){
+      const rowsEl = contentEl.querySelector('#taxRows');
+      const searchEl = contentEl.querySelector('#taxSearch');
+      const taxes = (DB.getSettings().taxes || []).slice();
+
+      function draw(filter){
+        const f = (filter||'').toLowerCase();
+        const list = taxes.filter(t=> !f || t.countryAr.toLowerCase().includes(f) || (t.countryEn||'').toLowerCase().includes(f));
+        rowsEl.innerHTML = list.map((t,i)=>{
+          const idx = taxes.indexOf(t);
+          return `<tr>
+            <td>${I18N.getLang()==='ar' ? t.countryAr : (t.countryEn||t.countryAr)}</td>
+            <td><input type="text" data-tax-name="${idx}" value="${t.nameAr||''}" style="min-width:160px;"></td>
+            <td><input type="number" data-tax-rate="${idx}" value="${t.rate||0}" min="0" max="100" step="0.1" style="width:90px;"></td>
+            <td><input type="checkbox" data-tax-enabled="${idx}" style="width:auto;" ${t.enabled?'checked':''}></td>
+          </tr>`;
+        }).join('');
+      }
+      draw('');
+      searchEl.addEventListener('input', e=>draw(e.target.value));
+
+      contentEl.querySelector('#saveTaxes').addEventListener('click', ()=>{
+        rowsEl.querySelectorAll('[data-tax-name]').forEach(inp=>{
+          taxes[Number(inp.dataset.taxName)].nameAr = inp.value.trim();
+        });
+        rowsEl.querySelectorAll('[data-tax-rate]').forEach(inp=>{
+          taxes[Number(inp.dataset.taxRate)].rate = Number(inp.value||0);
+        });
+        rowsEl.querySelectorAll('[data-tax-enabled]').forEach(inp=>{
+          taxes[Number(inp.dataset.taxEnabled)].enabled = inp.checked;
+        });
+        DB.saveSettings({ taxes });
+        DB.logActivity('تم تحديث إعدادات الضرائب', 'Tax settings updated', 'settings');
+        UI.toast(I18N.t('saved_ok'), 'success');
+      });
+    }
+
     renderUsers();
     renderApprovals();
     renderLog();
+    renderTaxes();
   }
 
   document.addEventListener('lang-changed', render);

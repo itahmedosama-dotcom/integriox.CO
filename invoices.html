@@ -9,18 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719e">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719e"></script>
-<script src="assets/js/lists.js?v=20260719e"></script>
-<script src="assets/js/config.js?v=20260719e"></script>
-<script src="assets/js/db.js?v=20260719e"></script>
-<script src="assets/js/auth.js?v=20260719e"></script>
-<script src="assets/js/ui.js?v=20260719e"></script>
-<script src="assets/js/layout.js?v=20260719e"></script>
+<script src="assets/js/i18n.js?v=20260719f"></script>
+<script src="assets/js/lists.js?v=20260719f"></script>
+<script src="assets/js/config.js?v=20260719f"></script>
+<script src="assets/js/db.js?v=20260719f"></script>
+<script src="assets/js/billing.js?v=20260719f"></script>
+<script src="assets/js/auth.js?v=20260719f"></script>
+<script src="assets/js/ui.js?v=20260719f"></script>
+<script src="assets/js/layout.js?v=20260719f"></script>
 <script>
 const ctx = LAYOUT.render('invoices');
 if(ctx){
@@ -29,6 +30,7 @@ if(ctx){
   const statusBadge = { paid:'badge-success', unpaid:'badge-warning' };
 
   function render(){
+    if(isAdmin) BILLING.runAutoInvoices();
     let invoices = DB.all('invoices');
     if(!isAdmin) invoices = invoices.filter(i=>i.clientId===user.clientId);
     const clients = DB.all('clients');
@@ -65,13 +67,17 @@ if(ctx){
       contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
       rowsEl.innerHTML = list.map(i=>{
         const client = clients.find(c=>c.id===i.clientId);
-        return `<tr>
+        const overdue = i.status==='unpaid' && i.date && i.date < DB.todayISO();
+        return `<tr ${overdue ? 'style="background:var(--warning-bg);"' : ''}>
           <td><strong>${i.id}</strong></td>
           <td>${client?client.name:'—'}</td>
           <td>${i.contractId||'—'}</td>
           <td><strong>${UI.fmtMoney(i.amount)}</strong></td>
           <td>${UI.fmtDate(i.date)}</td>
-          <td><span class="badge ${statusBadge[i.status]}" data-i18n="inv_${i.status}"></span></td>
+          <td>
+            <span class="badge ${statusBadge[i.status]}" data-i18n="inv_${i.status}"></span>
+            ${overdue ? `<span class="badge" style="background:#F5C244; color:#5a3d00;" data-i18n="overdue_badge"></span>` : ''}
+          </td>
           <td class="row-actions">
             <a class="btn btn-sm btn-outline" href="invoice-template.html?id=${i.id}" data-i18n="view_invoice"></a>
             ${isAdmin ? `<button class="btn btn-sm btn-outline" data-edit="${i.id}" data-i18n="edit"></button>` : ''}

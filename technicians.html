@@ -9,18 +9,18 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719e">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719e"></script>
-<script src="assets/js/lists.js?v=20260719e"></script>
-<script src="assets/js/config.js?v=20260719e"></script>
-<script src="assets/js/db.js?v=20260719e"></script>
-<script src="assets/js/auth.js?v=20260719e"></script>
-<script src="assets/js/ui.js?v=20260719e"></script>
-<script src="assets/js/layout.js?v=20260719e"></script>
+<script src="assets/js/i18n.js?v=20260719f"></script>
+<script src="assets/js/lists.js?v=20260719f"></script>
+<script src="assets/js/config.js?v=20260719f"></script>
+<script src="assets/js/db.js?v=20260719f"></script>
+<script src="assets/js/auth.js?v=20260719f"></script>
+<script src="assets/js/ui.js?v=20260719f"></script>
+<script src="assets/js/layout.js?v=20260719f"></script>
 <script>
 const ctx = LAYOUT.render('technicians');
 if(ctx){
@@ -54,6 +54,7 @@ if(ctx){
             <div class="avatar" style="width:46px;height:46px;font-size:15px;">${UI.initials(t.name)}</div>
             <div>
               <div style="font-weight:700;">${t.name}</div>
+              ${t.nameEn ? `<div class="text-muted" style="font-size:11.5px;">${t.nameEn}</div>` : ''}
               <div class="text-muted" style="font-size:12.5px;">${t.specialty||'—'}</div>
             </div>
           </div>
@@ -99,7 +100,10 @@ if(ctx){
     const overlay = UI.openModal(`
       <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_technician'}"></h3><button class="close-x" id="mClose">&times;</button></div>
       <div class="modal-body">
-        <div class="field"><label data-i18n="tech_name"></label><input type="text" id="fName" value="${t?t.name:''}"></div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="tech_name_ar"></label><input type="text" id="fNameAr" value="${t?(t.nameAr||t.name||''):''}"></div>
+          <div class="field"><label data-i18n="tech_name_en"></label><input type="text" id="fNameEn" value="${t?(t.nameEn||''):''}"></div>
+        </div>
         <div class="field-row">
           <div class="field"><label data-i18n="phone"></label><input type="tel" id="fPhone" value="${t?t.phone:''}"></div>
           <div class="field"><label data-i18n="email"></label><input type="email" id="fEmail" value="${t?t.email:''}"></div>
@@ -117,8 +121,11 @@ if(ctx){
     overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      const nameAr = overlay.querySelector('#fNameAr').value.trim();
       const data = {
-        name: overlay.querySelector('#fName').value.trim(),
+        nameAr,
+        name: nameAr,
+        nameEn: overlay.querySelector('#fNameEn').value.trim(),
         phone: overlay.querySelector('#fPhone').value.trim(),
         email: overlay.querySelector('#fEmail').value.trim(),
         specialty: overlay.querySelector('#fSpec').value.trim(),

@@ -9,18 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719e">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719e"></script>
-<script src="assets/js/lists.js?v=20260719e"></script>
-<script src="assets/js/config.js?v=20260719e"></script>
-<script src="assets/js/db.js?v=20260719e"></script>
-<script src="assets/js/auth.js?v=20260719e"></script>
-<script src="assets/js/ui.js?v=20260719e"></script>
-<script src="assets/js/layout.js?v=20260719e"></script>
+<script src="assets/js/i18n.js?v=20260719f"></script>
+<script src="assets/js/lists.js?v=20260719f"></script>
+<script src="assets/js/config.js?v=20260719f"></script>
+<script src="assets/js/db.js?v=20260719f"></script>
+<script src="assets/js/billing.js?v=20260719f"></script>
+<script src="assets/js/auth.js?v=20260719f"></script>
+<script src="assets/js/ui.js?v=20260719f"></script>
+<script src="assets/js/layout.js?v=20260719f"></script>
 <script>
 const ctx = LAYOUT.render('invoices');
 if(ctx){
@@ -36,8 +37,9 @@ if(ctx){
       return;
     }
     const client = DB.get('clients', invoice.clientId);
-    const subtotal = Math.round((Number(invoice.amount||0) / 1.15) * 100) / 100;
-    const vat = Math.round((Number(invoice.amount||0) - subtotal) * 100) / 100;
+    const contract = invoice.contractId ? DB.get('contracts', invoice.contractId) : null;
+    const breakdown = BILLING.invoiceBreakdown(invoice.amount, contract);
+    const subtotal = breakdown.subtotal;
 
     contentEl.innerHTML = `
       <div class="no-print" style="display:flex; justify-content:flex-end; margin-bottom:18px;">
@@ -109,9 +111,10 @@ if(ctx){
             <div style="display:flex; justify-content:space-between; padding:6px 0; font-size:13.5px;">
               <span class="text-muted" data-i18n="invoice_subtotal"></span><span>${UI.fmtMoney(subtotal)}</span>
             </div>
+            ${breakdown.taxLines.map(t=>`
             <div style="display:flex; justify-content:space-between; padding:6px 0; font-size:13.5px;">
-              <span class="text-muted" data-i18n="invoice_vat"></span><span>${UI.fmtMoney(vat)}</span>
-            </div>
+              <span class="text-muted">${t.nameAr} (${t.rate}%)</span><span>${UI.fmtMoney(t.amount)}</span>
+            </div>`).join('')}
             <div style="display:flex; justify-content:space-between; padding:10px 0; border-top:2px solid var(--navy); font-weight:800; font-size:15px;">
               <span data-i18n="invoice_grand_total"></span><span>${UI.fmtMoney(invoice.amount)}</span>
             </div>

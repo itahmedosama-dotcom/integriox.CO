@@ -9,19 +9,20 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719e">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719f">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719e"></script>
-<script src="assets/js/lists.js?v=20260719e"></script>
-<script src="assets/js/config.js?v=20260719e"></script>
-<script src="assets/js/db.js?v=20260719e"></script>
-<script src="assets/js/auth.js?v=20260719e"></script>
-<script src="assets/js/ui.js?v=20260719e"></script>
-<script src="assets/js/layout.js?v=20260719e"></script>
+<script src="assets/js/i18n.js?v=20260719f"></script>
+<script src="assets/js/lists.js?v=20260719f"></script>
+<script src="assets/js/config.js?v=20260719f"></script>
+<script src="assets/js/db.js?v=20260719f"></script>
+<script src="assets/js/billing.js?v=20260719f"></script>
+<script src="assets/js/auth.js?v=20260719f"></script>
+<script src="assets/js/ui.js?v=20260719f"></script>
+<script src="assets/js/layout.js?v=20260719f"></script>
 <script>
 const ctx = LAYOUT.render('dashboard');
 if(ctx){
@@ -87,6 +88,10 @@ if(ctx){
     if(user.role === 'client') return renderClient();
     if(user.role === 'technician') return renderTechnician();
 
+    // Check once per visit whether any deferred-payment contract has
+    // reached its monthly due day and needs a fresh invoice.
+    BILLING.runAutoInvoices();
+
     const clientsList = DB.all('clients');
     const k = computeKPIs();
     contentEl.innerHTML = `
@@ -141,6 +146,11 @@ if(ctx){
         </div>
       </div>
 
+      <div class="card" id="overdueCard" style="display:none; margin-bottom:22px; background:var(--warning-bg); border-color:var(--warning);">
+        <div class="card-header"><h3 class="card-title" style="color:#8a5a00;">⚠️ <span data-i18n="overdue_invoices_title"></span></h3></div>
+        <div id="overdueList"></div>
+      </div>
+
       <div class="grid grid-3" style="align-items:start;">
         <div class="card">
           <div class="card-header"><h3 class="card-title" data-i18n="payment_status"></h3></div>
@@ -187,6 +197,7 @@ if(ctx){
     drawCharts();
     renderUpcoming();
     renderActivity();
+    renderOverdue();
   }
 
   function exportDashboardImage(){
@@ -221,6 +232,10 @@ if(ctx){
 
     contentEl.innerHTML = `
       <p class="text-muted" style="margin:-6px 0 22px;" data-i18n="dashboard_sub"></p>
+      <div class="card" id="overdueCard" style="display:none; margin-bottom:22px; background:var(--warning-bg); border-color:var(--warning);">
+        <div class="card-header"><h3 class="card-title" style="color:#8a5a00;">⚠️ <span data-i18n="overdue_invoices_title"></span></h3></div>
+        <div id="overdueList"></div>
+      </div>
       <div class="grid grid-2" style="margin-bottom:22px; align-items:start;">
         <div class="card">
           <div class="card-header"><h3 class="card-title" data-i18n="my_contract_title"></h3></div>
@@ -229,7 +244,7 @@ if(ctx){
               <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_id"></span><strong>${activeContract.id}</strong></div>
               <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_amount"></span><strong>${UI.fmtMoney(activeContract.amount)}</strong></div>
               <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_status"></span><span class="badge badge-success" data-i18n="status_${activeContract.status}"></span></div>
-              <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_visits_total"></span><span>${activeContract.visitsUsed||0} ${I18N.t('visits_used_of')} ${activeContract.visitsTotal}</span></div>
+              <div style="display:flex;justify-content:space-between;"><span class="text-muted" data-i18n="contract_visits_total"></span><span>${activeContract.visitsUsed||0} ${I18N.t('visits_used_of')} ${activeContract.visitsUnlimited ? I18N.t('visits_unlimited') : activeContract.visitsTotal}</span></div>
               <a class="btn btn-outline btn-block" style="margin-top:6px;" href="contract-template.html?id=${activeContract.id}" data-i18n="view_my_contract"></a>
             </div>` : `<div class="empty-state" data-i18n="no_contract"></div>`}
         </div>
@@ -248,6 +263,7 @@ if(ctx){
       </div>
     `;
     I18N.apply(contentEl);
+    renderOverdue(user.clientId);
     const el = contentEl.querySelector('#myVisitsList');
     if(!visits.length){ el.innerHTML = `<div class="empty-state">${I18N.t('no_data')}</div>`; return; }
     el.innerHTML = visits.map(v=>`
@@ -416,6 +432,31 @@ if(ctx){
           <div class="text-muted" style="font-size:11px;">${UI.fmtDate(a.at)}</div>
         </div>
       </div>`).join('');
+  }
+
+  function renderOverdue(clientId){
+    const card = document.getElementById('overdueCard');
+    const el = document.getElementById('overdueList');
+    if(!card) return;
+    const clients = DB.all('clients');
+    const list = BILLING.overdueInvoices(clientId);
+    card.style.display = list.length ? '' : 'none';
+    if(!list.length) return;
+    el.innerHTML = list.map(i=>{
+      const client = clients.find(c=>c.id===i.clientId);
+      return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <div>
+          <div style="font-weight:700; font-size:13px;">${i.id} — ${client?client.name:'—'}</div>
+          <div style="font-size:11.5px; color:#8a5a00;">${UI.fmtDate(i.date)} · ${i.daysLate} ${I18N.t('days_late')}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="badge" style="background:#F5C244; color:#5a3d00;">${I18N.t('overdue_badge')}</span>
+          <strong>${UI.fmtMoney(i.amount)}</strong>
+          <a class="btn btn-sm btn-outline" href="invoice-template.html?id=${i.id}" data-i18n="view_invoice"></a>
+        </div>
+      </div>`;
+    }).join('');
+    I18N.apply(el);
   }
 
   document.addEventListener('lang-changed', render);
