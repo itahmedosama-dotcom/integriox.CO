@@ -72,13 +72,15 @@ if(ctx){
           <td>${p.contractId}</td>
           <td><strong>${UI.fmtMoney(p.amount)}</strong></td>
           <td><span data-i18n="${methodLabel[p.method]}"></span></td>
-          <td>${p.proofName ? `📎 ${p.proofName}` : '—'}</td>
+          <td>${p.proofData ? `<button class="btn btn-sm btn-outline" data-proof="${p.id}" data-i18n="view_document"></button>` : (p.proofName ? `📎 ${p.proofName}` : '—')}</td>
           <td><span class="badge ${statusBadge[p.status]}" data-i18n="pay_${p.status}"></span></td>
           <td class="row-actions">
             ${isAdmin && p.status==='review' ? `
               <button class="btn btn-sm btn-accent" data-confirm="${p.id}" data-i18n="confirm_payment"></button>
               <button class="btn btn-sm btn-danger" data-reject="${p.id}" data-i18n="reject_payment"></button>` : ''}
             ${isAdmin ? `<button class="btn btn-sm btn-outline" data-wa="${p.clientId}" title="WhatsApp">💬</button>` : ''}
+            ${isAdmin ? `<button class="btn btn-sm btn-outline" data-edit="${p.id}" data-i18n="edit"></button>` : ''}
+            ${isAdmin ? `<button class="btn btn-sm btn-danger" data-del="${p.id}" data-i18n="delete"></button>` : ''}
           </td>
         </tr>`;
       }).join('');
@@ -100,39 +102,78 @@ if(ctx){
           : `Hello ${client.name}, this is a reminder about your maintenance contract payment due date.`);
         window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
       }));
+      rowsEl.querySelectorAll('[data-proof]').forEach(b=>b.addEventListener('click', ()=>{
+        openProofViewer(payments.find(p=>p.id===b.dataset.proof));
+      }));
+      rowsEl.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openForm(clients, contracts, payments.find(p=>p.id===b.dataset.edit))));
+      rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{
+          DB.remove('payments', b.dataset.del);
+          UI.toast(I18N.t('deleted_ok'), 'success'); render();
+        });
+      }));
     }
     contentEl.querySelector('#statusFilter').addEventListener('change', draw);
     contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm(clients, contracts));
     draw();
   }
 
-  function openForm(clients, contracts){
+  function openProofViewer(p){
+    if(!p || !p.proofData) return;
+    const isPdf = /^data:application\/pdf/.test(p.proofData) || /\.pdf$/i.test(p.proofName||'');
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="attach_proof"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body" style="text-align:center;">
+        ${isPdf
+          ? `<iframe src="${p.proofData}" style="width:100%; height:60vh; border:1px solid var(--line); border-radius:8px;"></iframe>`
+          : `<img src="${p.proofData}" style="max-width:100%; max-height:60vh; border-radius:8px;">`}
+        <div class="text-muted" style="margin-top:10px; font-size:12.5px;">${p.proofName||''}</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="mClose2" data-i18n="close"></button>
+      </div>
+    `);
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mClose2').addEventListener('click', UI.closeModal);
+  }
+
+  function openForm(clients, contracts, payment){
     proofFile = null;
+    const editing = !!payment;
     const relevantContracts = isAdmin ? contracts : contracts.filter(c=>c.clientId===user.clientId);
     const overlay = UI.openModal(`
-      <div class="modal-head"><h3 data-i18n="add_payment"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_payment'}"></h3><button class="close-x" id="mClose">&times;</button></div>
       <div class="modal-body">
         ${isAdmin ? `
         <div class="field">
           <label data-i18n="contract_client"></label>
-          <select id="fClient">${clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+          <select id="fClient">${clients.map(c=>`<option value="${c.id}" ${editing && payment.clientId===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
         </div>`:''}
         <div class="field">
           <label data-i18n="related_contract"></label>
-          <select id="fContract">${relevantContracts.map(c=>`<option value="${c.id}" data-client="${c.clientId}">${c.id}</option>`).join('')}</select>
+          <select id="fContract">${relevantContracts.map(c=>`<option value="${c.id}" data-client="${c.clientId}" ${editing && payment.contractId===c.id?'selected':''}>${c.id}</option>`).join('')}</select>
         </div>
         <div class="field-row">
-          <div class="field"><label data-i18n="payment_amount"></label><input type="number" id="fAmount" min="0"></div>
-          <div class="field"><label data-i18n="payment_date"></label><input type="date" id="fDate" value="${DB.todayISO()}"></div>
+          <div class="field"><label data-i18n="payment_amount"></label><input type="number" id="fAmount" min="0" value="${editing?payment.amount:''}"></div>
+          <div class="field"><label data-i18n="payment_date"></label><input type="date" id="fDate" value="${editing?payment.date:DB.todayISO()}"></div>
         </div>
         <div class="field">
           <label data-i18n="payment_method"></label>
           <div class="radio-group">
-            <label class="radio-card active"><input type="radio" name="fMethod" value="bank" checked><span data-i18n="method_bank"></span></label>
-            <label class="radio-card"><input type="radio" name="fMethod" value="cash"><span data-i18n="method_cash"></span></label>
-            <label class="radio-card"><input type="radio" name="fMethod" value="other"><span data-i18n="method_other"></span></label>
+            <label class="radio-card ${!editing || payment.method==='bank'?'active':''}"><input type="radio" name="fMethod" value="bank" ${!editing || payment.method==='bank'?'checked':''}><span data-i18n="method_bank"></span></label>
+            <label class="radio-card ${editing && payment.method==='cash'?'active':''}"><input type="radio" name="fMethod" value="cash" ${editing && payment.method==='cash'?'checked':''}><span data-i18n="method_cash"></span></label>
+            <label class="radio-card ${editing && payment.method==='other'?'active':''}"><input type="radio" name="fMethod" value="other" ${editing && payment.method==='other'?'checked':''}><span data-i18n="method_other"></span></label>
           </div>
         </div>
+        ${editing ? `
+        <div class="field">
+          <label data-i18n="payment_status_col"></label>
+          <select id="fStatus">
+            <option value="review" data-i18n="pay_review" ${payment.status==='review'?'selected':''}></option>
+            <option value="confirmed" data-i18n="pay_confirmed" ${payment.status==='confirmed'?'selected':''}></option>
+            <option value="rejected" data-i18n="pay_rejected" ${payment.status==='rejected'?'selected':''}></option>
+          </select>
+        </div>` : ''}
         <div class="field">
           <label data-i18n="attach_proof"></label>
           <div class="file-drop" id="dropZone">
@@ -140,7 +181,7 @@ if(ctx){
             <div class="text-muted" style="font-size:12.5px;" data-i18n="proof_hint"></div>
           </div>
           <input type="file" id="fProof" accept="image/*,.pdf" class="hidden">
-          <div id="proofPreview"></div>
+          <div id="proofPreview">${editing && payment.proofName ? `<div class="file-preview"><span>📎 ${payment.proofName}</span></div>` : ''}</div>
         </div>
       </div>
       <div class="modal-foot">
@@ -177,16 +218,22 @@ if(ctx){
       const amount = Number(overlay.querySelector('#fAmount').value||0);
       if(!amount){ UI.toast(I18N.t('err_required'), 'error'); return; }
       const data = {
-        id: 'P-' + (9000 + DB.all('payments').length + 1),
         contractId: contractSel.value, clientId, amount,
         method: overlay.querySelector('input[name=fMethod]:checked').value,
         date: overlay.querySelector('#fDate').value,
-        status: 'review',
-        proofName: proofFile ? proofFile.name : null,
-        proofData: proofFile ? proofFile.data : null,
       };
-      DB.insert('payments', data);
-      DB.logActivity('تم تسجيل دفعة جديدة ' + data.id, 'New payment recorded ' + data.id);
+      if(proofFile){ data.proofName = proofFile.name; data.proofData = proofFile.data; }
+      if(editing){
+        data.status = overlay.querySelector('#fStatus').value;
+        DB.update('payments', payment.id, data);
+        DB.logActivity('تم تعديل الدفعة ' + payment.id, 'Payment updated ' + payment.id);
+      } else {
+        data.id = 'P-' + (9000 + DB.all('payments').length + 1);
+        data.status = 'review';
+        if(!proofFile){ data.proofName = null; data.proofData = null; }
+        DB.insert('payments', data);
+        DB.logActivity('تم تسجيل دفعة جديدة ' + data.id, 'New payment recorded ' + data.id);
+      }
       UI.closeModal(); UI.toast(I18N.t('saved_ok'),'success'); render();
     });
   }

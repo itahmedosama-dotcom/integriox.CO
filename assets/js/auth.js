@@ -25,10 +25,10 @@ const AUTH = (function(){
       phone:data.phone, role:data.role, status:'pending', company:data.company || ''
     };
     if(data.role === 'client'){
-      const client = DB.insert('clients', { name:data.name, phone:data.phone, email:data.email, address:data.company||'', createdAt: DB.todayISO() });
+      const client = DB.insert('clients', { name:data.name, nameAr:data.name, nameEn:'', country:'', phone:data.phone, email:data.email, address:data.company||'', createdAt: DB.todayISO() });
       user.clientId = client.id;
     } else if(data.role === 'technician'){
-      const tech = DB.insert('technicians', { name:data.name, phone:data.phone, email:data.email, specialty:data.company||'', rating:0 });
+      const tech = DB.insert('technicians', { name:data.name, phone:data.phone, email:data.email, specialty:data.company||'', nationality:'', rating:0 });
       user.techId = tech.id;
     }
     DB.insert('users', user);

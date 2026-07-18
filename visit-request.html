@@ -63,6 +63,21 @@ if(ctx){
             <label data-i18n="issue_desc"></label>
             <textarea id="fDesc" required></textarea>
           </div>
+          <div class="field-row">
+            <div class="field"><label data-i18n="contact_name"></label><input type="text" id="fContactName" value="${user.name||''}"></div>
+            <div class="field"><label data-i18n="contact_phone"></label><input type="tel" id="fContactPhone" value="${user.phone||''}"></div>
+          </div>
+          <div class="field">
+            <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="fRemoteToggle">
+              <span data-i18n="remote_access_toggle"></span>
+            </label>
+            <p class="hint" data-i18n="remote_access_hint" style="margin-top:6px;"></p>
+          </div>
+          <div class="field-row hidden" id="remoteFields">
+            <div class="field"><label data-i18n="remote_app_name"></label><input type="text" id="fRemoteApp"></div>
+            <div class="field"><label data-i18n="remote_access_code"></label><input type="text" id="fRemoteCode"></div>
+          </div>
           <div class="field">
             <label data-i18n="attach_photos"></label>
             <div class="file-drop" id="dropZone">
@@ -85,6 +100,12 @@ if(ctx){
         card.classList.add('active');
         card.querySelector('input').checked = true;
       });
+    });
+
+    const remoteToggle = contentEl.querySelector('#fRemoteToggle');
+    const remoteFields = contentEl.querySelector('#remoteFields');
+    remoteToggle.addEventListener('change', ()=>{
+      remoteFields.classList.toggle('hidden', !remoteToggle.checked);
     });
 
     const dropZone = contentEl.querySelector('#dropZone');
@@ -118,6 +139,12 @@ if(ctx){
         : user.clientId;
       if(!contractId){ UI.toast(I18N.t('err_required'), 'error'); return; }
 
+      const remoteEnabled = contentEl.querySelector('#fRemoteToggle').checked;
+      const remoteAccess = remoteEnabled ? {
+        app: contentEl.querySelector('#fRemoteApp').value.trim(),
+        code: contentEl.querySelector('#fRemoteCode').value.trim(),
+      } : null;
+
       const data = {
         id: 'V-' + (5000 + DB.all('visits').length + 1),
         contractId, clientId, techId:null,
@@ -126,6 +153,9 @@ if(ctx){
         type: contentEl.querySelector('input[name=fType]:checked').value,
         status: 'scheduled',
         description: contentEl.querySelector('#fDesc').value.trim(),
+        contactName: contentEl.querySelector('#fContactName').value.trim(),
+        contactPhone: contentEl.querySelector('#fContactPhone').value.trim(),
+        remoteAccess,
         photos: attachedPhotos.map(p=>p.name),
       };
       DB.insert('visits', data);
@@ -133,6 +163,7 @@ if(ctx){
       UI.toast(I18N.t('request_sent') + ' ' + data.id, 'success');
       attachedPhotos = [];
       contentEl.querySelector('#reqForm').reset();
+      remoteFields.classList.add('hidden');
       renderPhotos();
     });
   }

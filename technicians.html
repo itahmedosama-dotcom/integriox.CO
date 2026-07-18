@@ -57,6 +57,9 @@ if(ctx){
             <span class="text-muted" data-i18n="phone"></span><span>${t.phone||'—'}</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;">
+            <span class="text-muted" data-i18n="tech_nationality"></span><span>${t.nationality||'—'}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;">
             <span class="text-muted" data-i18n="tech_visits_count"></span><span class="badge badge-info">${count}</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:14px;">
@@ -92,7 +95,10 @@ if(ctx){
           <div class="field"><label data-i18n="phone"></label><input type="tel" id="fPhone" value="${t?t.phone:''}"></div>
           <div class="field"><label data-i18n="email"></label><input type="email" id="fEmail" value="${t?t.email:''}"></div>
         </div>
-        <div class="field"><label data-i18n="tech_specialty"></label><input type="text" id="fSpec" value="${t?t.specialty:''}"></div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="tech_specialty"></label><input type="text" id="fSpec" value="${t?t.specialty:''}"></div>
+          <div class="field"><label data-i18n="tech_nationality"></label><input type="text" id="fNationality" value="${t?(t.nationality||''):''}"></div>
+        </div>
       </div>
       <div class="modal-foot">
         <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
@@ -107,6 +113,7 @@ if(ctx){
         phone: overlay.querySelector('#fPhone').value.trim(),
         email: overlay.querySelector('#fEmail').value.trim(),
         specialty: overlay.querySelector('#fSpec').value.trim(),
+        nationality: overlay.querySelector('#fNationality').value.trim(),
       };
       if(!data.name){ UI.toast(I18N.t('err_required'), 'error'); return; }
       if(editing) DB.update('technicians', t.id, data);

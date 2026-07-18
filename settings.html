@@ -20,18 +20,20 @@
 <script>
 const ctx = LAYOUT.render('settings');
 if(ctx){
-  const { contentEl } = ctx;
+  const { user: me, contentEl } = ctx;
+  const statusBadge = { approved:'badge-success', pending:'badge-warning' };
 
   function render(){
     const settings = DB.getSettings();
-    const pending = DB.all('users').filter(u=>u.status==='pending');
 
     contentEl.innerHTML = `
       <div class="tabs">
         <button class="active" data-tab="general" data-i18n="general_settings"></button>
+        <button data-tab="users" data-i18n="settings_tab_users"></button>
+        <button data-tab="approvals" data-i18n="pending_approvals"></button>
         <button data-tab="terms" data-i18n="terms_settings"></button>
         <button data-tab="integration" data-i18n="integration_settings"></button>
-        <button data-tab="approvals" data-i18n="pending_approvals"></button>
+        <button data-tab="log" data-i18n="settings_tab_log"></button>
       </div>
 
       <div class="tab-panel" data-panel="general">
@@ -44,6 +46,41 @@ if(ctx){
           </div>
           <div class="field"><label data-i18n="client_address"></label><input type="text" id="sAddress" value="${settings.companyAddress}"></div>
           <button class="btn btn-primary" id="saveGeneral" data-i18n="save_changes"></button>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="users">
+        <div class="filters-bar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="userSearchInput" data-i18n-ph="search">
+          </div>
+          <select id="userRoleFilter">
+            <option value="" data-i18n="all"></option>
+            <option value="admin" data-i18n="role_admin"></option>
+            <option value="client" data-i18n="role_client"></option>
+            <option value="technician" data-i18n="role_technician"></option>
+          </select>
+          <button class="btn btn-primary" id="addUserBtn" data-i18n="add_user"></button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th data-i18n="full_name"></th><th data-i18n="email"></th><th data-i18n="phone"></th>
+                <th data-i18n="user_role"></th><th data-i18n="user_status"></th><th data-i18n="actions"></th>
+              </tr></thead>
+              <tbody id="userRows"></tbody>
+            </table>
+          </div>
+          <div id="userEmptyState" class="empty-state hidden"><div data-i18n="no_data"></div></div>
+        </div>
+      </div>
+
+      <div class="tab-panel hidden" data-panel="approvals">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title" data-i18n="pending_approvals"></h3></div>
+          <div id="approvalsBody"></div>
         </div>
       </div>
 
@@ -61,14 +98,31 @@ if(ctx){
           <div class="card-header"><h3 class="card-title" data-i18n="integration_settings"></h3></div>
           <p class="hint" data-i18n="sheet_hint" style="margin-bottom:12px;"></p>
           <div class="field"><label data-i18n="sheet_url"></label><input type="text" id="sSheetUrl" placeholder="https://script.google.com/macros/s/XXXXX/exec" value="${settings.sheetUrl||''}"></div>
+
+          <div class="field">
+            <label data-i18n="drive_folder"></label>
+            <input type="text" id="sDriveFolder" placeholder="1AbCDefGhIJkLmNoPQRstuVWxyz" value="${settings.driveFolderId||''}">
+            <p class="hint" data-i18n="drive_folder_hint" style="margin-top:6px;"></p>
+          </div>
+
+          <div class="field">
+            <label data-i18n="api_key"></label>
+            <div style="display:flex; gap:8px;">
+              <input type="password" id="sApiKey" placeholder="••••••••" style="flex:1;">
+              <button type="button" class="btn btn-outline btn-sm" id="toggleApiKey" data-i18n="show_value"></button>
+            </div>
+            <p class="hint" data-i18n="api_key_hint" style="margin-top:6px;"></p>
+            ${settings.apiKeyEnc ? `<p class="hint" data-i18n="api_key_saved_hint" style="margin-top:2px;"></p>` : ''}
+          </div>
+
           <button class="btn btn-primary" id="saveSheet" data-i18n="save_changes"></button>
         </div>
       </div>
 
-      <div class="tab-panel hidden" data-panel="approvals">
+      <div class="tab-panel hidden" data-panel="log">
         <div class="card">
-          <div class="card-header"><h3 class="card-title" data-i18n="pending_approvals"></h3></div>
-          <div id="approvalsBody"></div>
+          <div class="card-header"><h3 class="card-title" data-i18n="activity_log"></h3></div>
+          <div id="logBody"></div>
         </div>
       </div>
     `;
@@ -96,11 +150,129 @@ if(ctx){
       DB.saveSettings({ terms: contentEl.querySelector('#sTerms').value });
       UI.toast(I18N.t('saved_ok'), 'success');
     });
-    contentEl.querySelector('#saveSheet').addEventListener('click', ()=>{
-      DB.saveSettings({ sheetUrl: contentEl.querySelector('#sSheetUrl').value.trim() });
-      DB.setMode(contentEl.querySelector('#sSheetUrl').value.trim() ? 'remote' : 'local');
-      UI.toast(I18N.t('saved_ok'), 'success');
+    const apiKeyInput = contentEl.querySelector('#sApiKey');
+    contentEl.querySelector('#toggleApiKey').addEventListener('click', (e)=>{
+      const showing = apiKeyInput.type === 'text';
+      apiKeyInput.type = showing ? 'password' : 'text';
+      e.target.textContent = I18N.t(showing ? 'show_value' : 'hide_value');
     });
+
+    contentEl.querySelector('#saveSheet').addEventListener('click', ()=>{
+      const sheetUrl = contentEl.querySelector('#sSheetUrl').value.trim();
+      const driveFolderId = contentEl.querySelector('#sDriveFolder').value.trim();
+      const newKey = apiKeyInput.value.trim();
+      const patch = { sheetUrl, driveFolderId };
+      if(newKey) patch.apiKeyEnc = DB.encodeSecret(newKey);
+      DB.saveSettings(patch);
+      DB.setMode(sheetUrl ? 'remote' : 'local');
+      UI.toast(I18N.t('saved_ok'), 'success');
+      apiKeyInput.value = '';
+      render();
+    });
+
+    function renderUsers(){
+      const users = DB.all('users');
+      const rowsEl = contentEl.querySelector('#userRows');
+      function draw(){
+        const f = (contentEl.querySelector('#userSearchInput').value||'').toLowerCase();
+        const rf = contentEl.querySelector('#userRoleFilter').value;
+        const list = users.filter(u=>{
+          const matchesText = !f || u.name.toLowerCase().includes(f) || u.email.toLowerCase().includes(f) || (u.phone||'').includes(f);
+          const matchesRole = !rf || u.role===rf;
+          return matchesText && matchesRole;
+        });
+        contentEl.querySelector('#userEmptyState').classList.toggle('hidden', list.length>0);
+        rowsEl.innerHTML = list.map(u=>`<tr>
+          <td class="cell-name"><div class="avatar">${UI.initials(u.name)}</div>${u.name}</td>
+          <td>${u.email}</td>
+          <td>${u.phone||'—'}</td>
+          <td>${AUTH.roleLabel(u.role)}</td>
+          <td><span class="badge ${statusBadge[u.status]||'badge-mute'}" data-i18n="status_${u.status==='approved'?'approved':'pending'}"></span></td>
+          <td class="row-actions">
+            ${u.status==='pending' ? `<button class="btn btn-sm btn-accent" data-approve="${u.id}" data-i18n="approve"></button>` : ''}
+            <button class="btn btn-sm btn-outline" data-edit="${u.id}" data-i18n="edit"></button>
+            ${u.id!==me.id ? `<button class="btn btn-sm btn-danger" data-del="${u.id}" data-i18n="delete"></button>` : ''}
+          </td>
+        </tr>`).join('');
+        I18N.apply(rowsEl);
+        rowsEl.querySelectorAll('[data-approve]').forEach(b=>b.addEventListener('click', ()=>{
+          DB.update('users', b.dataset.approve, { status:'approved' });
+          UI.toast(I18N.t('saved_ok'), 'success'); render();
+        }));
+        rowsEl.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openUserForm(DB.get('users', b.dataset.edit))));
+        rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+          UI.confirmAction(I18N.t('confirm_delete'), ()=>{
+            DB.remove('users', b.dataset.del);
+            UI.toast(I18N.t('deleted_ok'), 'success'); render();
+          });
+        }));
+      }
+      contentEl.querySelector('#userSearchInput').addEventListener('input', draw);
+      contentEl.querySelector('#userRoleFilter').addEventListener('change', draw);
+      contentEl.querySelector('#addUserBtn').addEventListener('click', ()=>openUserForm(null));
+      draw();
+    }
+
+    function openUserForm(u){
+      const editing = !!u;
+      const overlay = UI.openModal(`
+        <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_user'}"></h3><button class="close-x" id="mClose">&times;</button></div>
+        <div class="modal-body">
+          <div class="field"><label data-i18n="full_name"></label><input type="text" id="fName" value="${editing?u.name:''}"></div>
+          <div class="field-row">
+            <div class="field"><label data-i18n="email"></label><input type="email" id="fEmail" value="${editing?u.email:''}" ${editing?'disabled':''}></div>
+            <div class="field"><label data-i18n="phone"></label><input type="tel" id="fPhone" value="${editing?(u.phone||''):''}"></div>
+          </div>
+          <div class="field">
+            <label data-i18n="password"></label>
+            <input type="password" id="fPassword" placeholder="${editing ? '••••••••' : ''}">
+          </div>
+          <div class="field">
+            <label data-i18n="user_role"></label>
+            <select id="fRole">
+              <option value="admin" data-i18n="role_admin" ${editing && u.role==='admin'?'selected':''}></option>
+              <option value="client" data-i18n="role_client" ${editing && u.role==='client'?'selected':''}></option>
+              <option value="technician" data-i18n="role_technician" ${editing && u.role==='technician'?'selected':''}></option>
+            </select>
+          </div>
+          <div class="field">
+            <label data-i18n="user_status"></label>
+            <select id="fStatus">
+              <option value="approved" data-i18n="status_approved" ${editing && u.status==='approved'?'selected':''}></option>
+              <option value="pending" data-i18n="status_pending" ${editing && u.status==='pending'?'selected':''}></option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
+          <button class="btn btn-primary" id="mSave" data-i18n="save"></button>
+        </div>
+      `);
+      I18N.apply(overlay);
+      overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+      overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
+      overlay.querySelector('#mSave').addEventListener('click', ()=>{
+        const name = overlay.querySelector('#fName').value.trim();
+        const email = overlay.querySelector('#fEmail').value.trim();
+        const phone = overlay.querySelector('#fPhone').value.trim();
+        const password = overlay.querySelector('#fPassword').value;
+        const role = overlay.querySelector('#fRole').value;
+        const status = overlay.querySelector('#fStatus').value;
+        if(!name || (!editing && !email)){ UI.toast(I18N.t('err_required'), 'error'); return; }
+
+        if(editing){
+          const patch = { name, phone, role, status };
+          if(password) patch.password = password;
+          DB.update('users', u.id, patch);
+        } else {
+          if(DB.all('users').some(x=>x.email.toLowerCase()===email.toLowerCase())){
+            UI.toast(I18N.t('err_login'), 'error'); return;
+          }
+          DB.insert('users', { id: DB.uid('u'), name, email, phone, password: password||'123456', role, status });
+        }
+        UI.closeModal(); UI.toast(I18N.t('saved_ok'), 'success'); render();
+      });
+    }
 
     function renderApprovals(){
       const body = contentEl.querySelector('#approvalsBody');
@@ -122,13 +294,30 @@ if(ctx){
         </table></div>`;
       I18N.apply(body);
       body.querySelectorAll('[data-approve]').forEach(b=>b.addEventListener('click', ()=>{
-        DB.update('users', b.dataset.approve, { status:'approved' }); UI.toast(I18N.t('saved_ok'),'success'); renderApprovals();
+        DB.update('users', b.dataset.approve, { status:'approved' }); UI.toast(I18N.t('saved_ok'),'success'); render();
       }));
       body.querySelectorAll('[data-reject]').forEach(b=>b.addEventListener('click', ()=>{
-        UI.confirmAction(I18N.t('confirm_delete'), ()=>{ DB.remove('users', b.dataset.reject); UI.toast(I18N.t('deleted_ok'),'success'); renderApprovals(); });
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{ DB.remove('users', b.dataset.reject); UI.toast(I18N.t('deleted_ok'),'success'); render(); });
       }));
     }
+
+    function renderLog(){
+      const body = contentEl.querySelector('#logBody');
+      const acts = DB.all('activity');
+      if(!acts.length){ body.innerHTML = `<div class="empty-state">${I18N.t('no_activity')}</div>`; return; }
+      body.innerHTML = acts.map(a=>`
+        <div style="display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:6px;flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:13px;">${I18N.getLang()==='ar' ? a.text_ar : a.text_en}</div>
+            <div class="text-muted" style="font-size:11px;">${UI.fmtDate(a.at)}</div>
+          </div>
+        </div>`).join('');
+    }
+
+    renderUsers();
     renderApprovals();
+    renderLog();
   }
 
   document.addEventListener('lang-changed', render);

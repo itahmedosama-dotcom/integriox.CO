@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Invoice</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+const ctx = LAYOUT.render('invoices');
+if(ctx){
+  const { contentEl } = ctx;
+  const params = new URLSearchParams(window.location.search);
+  const invoiceId = params.get('id');
+  const invoice = DB.get('invoices', invoiceId);
+  const settings = DB.getSettings();
+
+  function render(){
+    if(!invoice){
+      contentEl.innerHTML = `<div class="empty-state">${I18N.t('no_data')}</div>`;
+      return;
+    }
+    const client = DB.get('clients', invoice.clientId);
+
+    contentEl.innerHTML = `
+      <div class="no-print" style="display:flex; justify-content:flex-end; margin-bottom:18px;">
+        <button class="btn btn-accent" id="printBtn">🖨️ <span data-i18n="print_invoice"></span></button>
+      </div>
+
+      <div class="card" id="printArea">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:26px; padding-bottom:20px; border-bottom:2px solid var(--navy);">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <img src="assets/images/logo.png" style="width:52px;height:52px;">
+            <div>
+              <div style="font-weight:800; font-size:18px; color:var(--navy);">${settings.companyName}</div>
+              <div class="text-muted" style="font-size:12px;">${settings.companyAddress}</div>
+            </div>
+          </div>
+          <div style="text-align:end;">
+            <div style="font-weight:800; font-size:16px;" data-i18n="invoices"></div>
+            <div class="text-muted" style="font-size:13px;">${invoice.id}</div>
+            <div class="text-muted" style="font-size:12px;">${UI.fmtDate(invoice.date)}</div>
+          </div>
+        </div>
+
+        <div class="grid grid-2" style="margin-bottom:24px;">
+          <div>
+            <h4 data-i18n="party_a" style="margin:0 0 8px;"></h4>
+            <div style="font-size:13.5px; line-height:2;">
+              ${settings.companyName}<br>${settings.companyPhone}<br>${settings.companyEmail}
+            </div>
+          </div>
+          <div>
+            <h4 data-i18n="party_b" style="margin:0 0 8px;"></h4>
+            <div style="font-size:13.5px; line-height:2;">
+              ${client?client.name:'—'}<br>${client?client.phone:''}<br>${client?client.address:''}
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-3" style="margin-bottom:24px;">
+          <div><div class="text-muted" style="font-size:12px;" data-i18n="invoice_contract"></div><div style="font-weight:700;">${invoice.contractId||'—'}</div></div>
+          <div><div class="text-muted" style="font-size:12px;" data-i18n="invoice_amount"></div><div style="font-weight:700;">${UI.fmtMoney(invoice.amount)}</div></div>
+          <div><div class="text-muted" style="font-size:12px;" data-i18n="invoice_status"></div><div style="font-weight:700;" data-i18n="inv_${invoice.status}"></div></div>
+        </div>
+
+        <h4 data-i18n="invoice_desc" style="margin:0 0 10px;"></h4>
+        <div class="terms-box" style="max-height:none; margin-bottom:10px;">${invoice.description || '—'}</div>
+      </div>
+    `;
+    I18N.apply(contentEl);
+    contentEl.querySelector('#printBtn').addEventListener('click', ()=>window.print());
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>

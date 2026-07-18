@@ -37,7 +37,8 @@ if(ctx){
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th data-i18n="client_name"></th><th data-i18n="client_phone"></th><th data-i18n="client_email"></th>
+              <th data-i18n="client_name_ar"></th><th data-i18n="client_name_en"></th><th data-i18n="client_country"></th>
+              <th data-i18n="client_phone"></th><th data-i18n="client_email"></th>
               <th data-i18n="client_address"></th><th data-i18n="client_contracts_count"></th><th data-i18n="actions"></th>
             </tr></thead>
             <tbody id="rows"></tbody>
@@ -53,12 +54,20 @@ if(ctx){
 
     function draw(filter){
       const f = (filter||'').toLowerCase();
-      const list = clients.filter(c=> !f || c.name.toLowerCase().includes(f) || c.phone.includes(f) || (c.email||'').toLowerCase().includes(f));
+      const list = clients.filter(c=>{
+        const nameAr = (c.nameAr||c.name||'');
+        const nameEn = (c.nameEn||'');
+        return !f || nameAr.toLowerCase().includes(f) || nameEn.toLowerCase().includes(f) ||
+          (c.country||'').toLowerCase().includes(f) || (c.phone||'').includes(f) || (c.email||'').toLowerCase().includes(f);
+      });
       contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
       rowsEl.innerHTML = list.map(c=>{
         const count = contracts.filter(k=>k.clientId===c.id).length;
+        const nameAr = c.nameAr || c.name || '—';
         return `<tr>
-          <td class="cell-name"><div class="avatar">${UI.initials(c.name)}</div>${c.name}</td>
+          <td class="cell-name"><div class="avatar">${UI.initials(nameAr)}</div>${nameAr}</td>
+          <td>${c.nameEn||'—'}</td>
+          <td>${c.country||'—'}</td>
           <td>${c.phone||'—'}</td>
           <td>${c.email||'—'}</td>
           <td>${c.address||'—'}</td>
@@ -94,12 +103,18 @@ if(ctx){
     const overlay = UI.openModal(`
       <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_client'}"></h3><button class="close-x" id="mClose">&times;</button></div>
       <div class="modal-body">
-        <div class="field"><label data-i18n="client_name"></label><input type="text" id="fName" value="${client?client.name:''}"></div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="client_name_ar"></label><input type="text" id="fNameAr" value="${client?(client.nameAr||client.name||''):''}"></div>
+          <div class="field"><label data-i18n="client_name_en"></label><input type="text" id="fNameEn" value="${client?(client.nameEn||''):''}"></div>
+        </div>
         <div class="field-row">
           <div class="field"><label data-i18n="client_phone"></label><input type="tel" id="fPhone" value="${client?client.phone:''}"></div>
           <div class="field"><label data-i18n="client_email"></label><input type="email" id="fEmail" value="${client?client.email:''}"></div>
         </div>
-        <div class="field"><label data-i18n="client_address"></label><input type="text" id="fAddress" value="${client?client.address:''}"></div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="client_country"></label><input type="text" id="fCountry" value="${client?(client.country||''):''}"></div>
+          <div class="field"><label data-i18n="client_address"></label><input type="text" id="fAddress" value="${client?client.address:''}"></div>
+        </div>
       </div>
       <div class="modal-foot">
         <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
@@ -109,13 +124,17 @@ if(ctx){
     overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      const nameAr = overlay.querySelector('#fNameAr').value.trim();
       const data = {
-        name: overlay.querySelector('#fName').value.trim(),
+        nameAr,
+        name: nameAr, // kept for backward-compat with pages that read client.name
+        nameEn: overlay.querySelector('#fNameEn').value.trim(),
+        country: overlay.querySelector('#fCountry').value.trim(),
         phone: overlay.querySelector('#fPhone').value.trim(),
         email: overlay.querySelector('#fEmail').value.trim(),
         address: overlay.querySelector('#fAddress').value.trim(),
       };
-      if(!data.name){ UI.toast(I18N.t('err_required'), 'error'); return; }
+      if(!data.nameAr){ UI.toast(I18N.t('err_required'), 'error'); return; }
       if(editing) DB.update('clients', client.id, data);
       else DB.insert('clients', { ...data, createdAt: DB.todayISO() });
       UI.closeModal();

@@ -23,6 +23,8 @@ const DB = (function(){
         companyEmail: 'info@integriox.com',
         companyAddress: 'الرياض، المملكة العربية السعودية',
         sheetUrl: '',
+        driveFolderId: '',
+        apiKeyEnc: '',
         terms:
 `1. يلتزم الطرف الأول (الشركة) بتقديم خدمات الصيانة المتفق عليها وفق الجدول الزمني المحدد في العقد.
 2. يلتزم الطرف الثاني (العميل) بتوفير الوصول اللازم للموقع في مواعيد الزيارات المتفق عليها.
@@ -39,14 +41,14 @@ const DB = (function(){
         { id:'u_pending1', name:'سارة القحطاني', email:'sara@example.com', password:'123456', phone:'0509998877', role:'client', status:'pending' },
       ],
       clients: [
-        { id:'c_1', name:'أحمد الشمري', phone:'0501112233', email:'client@integriox.com', address:'الرياض - حي النرجس', createdAt: now },
-        { id:'c_2', name:'شركة النخبة التجارية', phone:'0555556677', email:'info@elitecorp.sa', address:'جدة - حي الروضة', createdAt: now },
-        { id:'c_3', name:'مصنع الأمل للصناعات', phone:'0533334455', email:'contact@amal-factory.sa', address:'الدمام - المنطقة الصناعية', createdAt: now },
+        { id:'c_1', name:'أحمد الشمري', nameAr:'أحمد الشمري', nameEn:'Ahmed Al-Shamri', country:'السعودية', phone:'0501112233', email:'client@integriox.com', address:'الرياض - حي النرجس', createdAt: now },
+        { id:'c_2', name:'شركة النخبة التجارية', nameAr:'شركة النخبة التجارية', nameEn:'Elite Corp Trading', country:'السعودية', phone:'0555556677', email:'info@elitecorp.sa', address:'جدة - حي الروضة', createdAt: now },
+        { id:'c_3', name:'مصنع الأمل للصناعات', nameAr:'مصنع الأمل للصناعات', nameEn:'Al-Amal Industries', country:'السعودية', phone:'0533334455', email:'contact@amal-factory.sa', address:'الدمام - المنطقة الصناعية', createdAt: now },
       ],
       technicians: [
-        { id:'t_1', name:'محمد العتيبي', phone:'0502223344', email:'tech@integriox.com', specialty:'تكييف وتبريد', rating:4.8 },
-        { id:'t_2', name:'خالد الدوسري', phone:'0544445566', email:'khaled@integriox.com', specialty:'كهرباء وأنظمة', rating:4.6 },
-        { id:'t_3', name:'عبدالله المطيري', phone:'0577778899', email:'abdullah@integriox.com', specialty:'شبكات وحاسب آلي', rating:4.9 },
+        { id:'t_1', name:'محمد العتيبي', phone:'0502223344', email:'tech@integriox.com', specialty:'تكييف وتبريد', nationality:'السعودية', rating:4.8 },
+        { id:'t_2', name:'خالد الدوسري', phone:'0544445566', email:'khaled@integriox.com', specialty:'كهرباء وأنظمة', nationality:'السعودية', rating:4.6 },
+        { id:'t_3', name:'عبدالله المطيري', phone:'0577778899', email:'abdullah@integriox.com', specialty:'شبكات وحاسب آلي', nationality:'مصر', rating:4.9 },
       ],
       contracts: [
         { id:'CT-1001', clientId:'c_1', amount:24000, durationMonths:12, periodType:'fixed', contractType:'all', startDate:'2026-01-01', endDate:'2026-12-31', visitsTotal:12, visitsUsed:5, paymentTerms:'deferred', status:'active', signature:null, createdAt:now },
@@ -67,6 +69,11 @@ const DB = (function(){
         { id:'P-9002', contractId:'CT-1002', clientId:'c_2', amount:30000, method:'bank', date:'2025-09-05', status:'confirmed', proofName:'transfer_sept.jpg' },
         { id:'P-9003', contractId:'CT-1001', clientId:'c_1', amount:2000, method:'cash', date:'2026-07-01', status:'review', proofName:'cash_receipt_july.jpg' },
         { id:'P-9004', contractId:'CT-1004', clientId:'c_2', amount:15000, method:'other', date:'2026-03-02', status:'confirmed', proofName:'stc_pay.png' },
+      ],
+      invoices: [
+        { id:'INV-7001', contractId:'CT-1001', clientId:'c_1', amount:2000, date:now, status:'paid', description:'دفعة شهرية - يونيو', createdAt: now },
+        { id:'INV-7002', contractId:'CT-1002', clientId:'c_2', amount:30000, date:now, status:'paid', description:'دفعة مقدمة', createdAt: now },
+        { id:'INV-7003', contractId:'CT-1001', clientId:'c_1', amount:2000, date:now, status:'unpaid', description:'دفعة شهرية - يوليو', createdAt: now },
       ],
       activity: [
         { id:'a1', text_ar:'تم تسجيل دفعة جديدة للعقد CT-1001', text_en:'New payment recorded for contract CT-1001', at: now },
@@ -127,10 +134,22 @@ const DB = (function(){
     save(data);
     return data.settings;
   }
+  // ---------- lightweight secret obfuscation (NOT real encryption) ----------
+  // Purpose: avoid keeping API keys as bare plaintext in localStorage/UI.
+  // For real security this must be replaced by server-side secret storage.
+  function encodeSecret(plain){
+    if(!plain) return '';
+    try{ return btoa(unescape(encodeURIComponent(plain))); } catch(e){ return ''; }
+  }
+  function decodeSecret(enc){
+    if(!enc) return '';
+    try{ return decodeURIComponent(escape(atob(enc))); } catch(e){ return ''; }
+  }
+
   function logActivity(text_ar, text_en){
     const data = load();
     data.activity.unshift({ id: uid('a'), text_ar, text_en, at: new Date().toISOString() });
-    data.activity = data.activity.slice(0,20);
+    data.activity = data.activity.slice(0,300);
     save(data);
   }
 
@@ -138,6 +157,7 @@ const DB = (function(){
     uid, todayISO, load, save, resetDemo,
     all, get, insert, update, remove,
     getSettings, saveSettings, logActivity,
+    encodeSecret, decodeSecret,
     setMode:(m)=>MODE=m,
   };
 })();

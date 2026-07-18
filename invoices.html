@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Invoices</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+const ctx = LAYOUT.render('invoices');
+if(ctx){
+  const { user, contentEl } = ctx;
+  const isAdmin = user.role === 'admin';
+  const statusBadge = { paid:'badge-success', unpaid:'badge-warning' };
+
+  function render(){
+    let invoices = DB.all('invoices');
+    if(!isAdmin) invoices = invoices.filter(i=>i.clientId===user.clientId);
+    const clients = DB.all('clients');
+    const contracts = DB.all('contracts');
+
+    contentEl.innerHTML = `
+      <div class="filters-bar">
+        <select id="statusFilter">
+          <option value="" data-i18n="all"></option>
+          <option value="unpaid" data-i18n="inv_unpaid"></option>
+          <option value="paid" data-i18n="inv_paid"></option>
+        </select>
+        ${isAdmin ? `<button class="btn btn-primary" id="addBtn" data-i18n="add_invoice"></button>` : ''}
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="invoice_id"></th><th data-i18n="invoice_client"></th><th data-i18n="invoice_contract"></th>
+              <th data-i18n="invoice_amount"></th><th data-i18n="invoice_date"></th><th data-i18n="invoice_status"></th><th data-i18n="actions"></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state hidden"><div data-i18n="no_data"></div></div>
+      </div>
+    `;
+    I18N.apply(contentEl);
+    const rowsEl = contentEl.querySelector('#rows');
+
+    function draw(){
+      const st = contentEl.querySelector('#statusFilter').value;
+      const list = invoices.filter(i=> !st || i.status===st).sort((a,b)=>b.date.localeCompare(a.date));
+      contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
+      rowsEl.innerHTML = list.map(i=>{
+        const client = clients.find(c=>c.id===i.clientId);
+        return `<tr>
+          <td><strong>${i.id}</strong></td>
+          <td>${client?client.name:'—'}</td>
+          <td>${i.contractId||'—'}</td>
+          <td><strong>${UI.fmtMoney(i.amount)}</strong></td>
+          <td>${UI.fmtDate(i.date)}</td>
+          <td><span class="badge ${statusBadge[i.status]}" data-i18n="inv_${i.status}"></span></td>
+          <td class="row-actions">
+            <a class="btn btn-sm btn-outline" href="invoice-template.html?id=${i.id}" data-i18n="view_invoice"></a>
+            ${isAdmin ? `<button class="btn btn-sm btn-outline" data-edit="${i.id}" data-i18n="edit"></button>` : ''}
+            ${isAdmin ? `<button class="btn btn-sm btn-danger" data-del="${i.id}" data-i18n="delete"></button>` : ''}
+          </td>
+        </tr>`;
+      }).join('');
+      I18N.apply(rowsEl);
+      rowsEl.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openForm(clients, contracts, invoices.find(i=>i.id===b.dataset.edit))));
+      rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{ DB.remove('invoices', b.dataset.del); UI.toast(I18N.t('deleted_ok'),'success'); render(); });
+      }));
+    }
+    contentEl.querySelector('#statusFilter').addEventListener('change', draw);
+    if(isAdmin) contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm(clients, contracts));
+    draw();
+  }
+
+  function openForm(clients, contracts, invoice){
+    const editing = !!invoice;
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_invoice'}"></h3><button class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="field">
+          <label data-i18n="invoice_client"></label>
+          <select id="fClient">${clients.map(c=>`<option value="${c.id}" ${editing && invoice.clientId===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
+        </div>
+        <div class="field">
+          <label data-i18n="invoice_contract"></label>
+          <select id="fContract"><option value="">—</option>${contracts.map(c=>`<option value="${c.id}" data-client="${c.clientId}" ${editing && invoice.contractId===c.id?'selected':''}>${c.id}</option>`).join('')}</select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="invoice_amount"></label><input type="number" id="fAmount" min="0" value="${editing?invoice.amount:''}"></div>
+          <div class="field"><label data-i18n="invoice_date"></label><input type="date" id="fDate" value="${editing?invoice.date:DB.todayISO()}"></div>
+        </div>
+        <div class="field"><label data-i18n="invoice_desc"></label><textarea id="fDesc">${editing?(invoice.description||''):''}</textarea></div>
+        <div class="field">
+          <label data-i18n="invoice_status"></label>
+          <select id="fStatus">
+            <option value="unpaid" data-i18n="inv_unpaid" ${!editing || invoice.status==='unpaid'?'selected':''}></option>
+            <option value="paid" data-i18n="inv_paid" ${editing && invoice.status==='paid'?'selected':''}></option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
+        <button class="btn btn-primary" id="mSave" data-i18n="save"></button>
+      </div>
+    `);
+    I18N.apply(overlay);
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      const amount = Number(overlay.querySelector('#fAmount').value||0);
+      if(!amount){ UI.toast(I18N.t('err_required'), 'error'); return; }
+      const data = {
+        clientId: overlay.querySelector('#fClient').value,
+        contractId: overlay.querySelector('#fContract').value || null,
+        amount,
+        date: overlay.querySelector('#fDate').value,
+        description: overlay.querySelector('#fDesc').value.trim(),
+        status: overlay.querySelector('#fStatus').value,
+      };
+      if(editing){
+        DB.update('invoices', invoice.id, data);
+        DB.logActivity('تم تعديل الفاتورة ' + invoice.id, 'Invoice updated ' + invoice.id);
+      } else {
+        data.id = 'INV-' + (7000 + DB.all('invoices').length + 1);
+        data.createdAt = DB.todayISO();
+        DB.insert('invoices', data);
+        DB.logActivity('تم إصدار فاتورة جديدة ' + data.id, 'New invoice issued ' + data.id);
+      }
+      UI.closeModal(); UI.toast(I18N.t('saved_ok'),'success'); render();
+    });
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>
