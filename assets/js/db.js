@@ -50,17 +50,10 @@ const DB = (function(){
         companyTaxNumber: '',
         bankName: '',
         iban: '',
-        // Service catalog for one-off job orders (تنفيذ بالطلب) — editable
-        // and extendable directly from that screen, same pattern as
-        // currencies/taxes.
-        serviceTypes: [
-          { id:'svc_ac_repair', nameAr:'صيانة تكييف', nameEn:'AC repair', defaultPrice:0 },
-          { id:'svc_ac_install', nameAr:'تركيب تكييف', nameEn:'AC installation', defaultPrice:0 },
-          { id:'svc_plumbing', nameAr:'سباكة', nameEn:'Plumbing', defaultPrice:0 },
-          { id:'svc_electrical', nameAr:'كهرباء', nameEn:'Electrical', defaultPrice:0 },
-          { id:'svc_general', nameAr:'صيانة عامة', nameEn:'General maintenance', defaultPrice:0 },
-          { id:'svc_emergency', nameAr:'زيارة طارئة', nameEn:'Emergency visit', defaultPrice:0 },
-        ],
+        // Service catalog for one-off job orders (تنفيذ بالطلب) — starts
+        // empty; the admin adds services as needed directly from that
+        // screen.
+        serviceTypes: [],
         // Per-country tax definitions — editable from Settings → الضرائب.
         // Seeded from LISTS.COUNTRIES with a sensible Saudi VAT default;
         // everything else starts disabled at 0% until the admin fills it in.
@@ -153,6 +146,17 @@ const DB = (function(){
         if(cache.settings.sheetUrl !== (cfg.sheetUrl || '')){
           cache.settings.sheetUrl = cfg.sheetUrl || '';
           cache.settings.apiKeyEnc = cfg.apiKey ? encodeSecret(cfg.apiKey) : '';
+          settingsChanged = true;
+        }
+      }
+      // One-time cleanup: this build briefly shipped a demo service
+      // catalog (svc_ac_repair, svc_plumbing, ...) — remove exactly those
+      // if still present, but leave any custom services the admin added.
+      if(Array.isArray(cache.settings.serviceTypes)){
+        const demoIds = ['svc_ac_repair','svc_ac_install','svc_plumbing','svc_electrical','svc_general','svc_emergency'];
+        const cleaned = cache.settings.serviceTypes.filter(s => !demoIds.includes(s.id));
+        if(cleaned.length !== cache.settings.serviceTypes.length){
+          cache.settings.serviceTypes = cleaned;
           settingsChanged = true;
         }
       }

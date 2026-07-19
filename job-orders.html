@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719v">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719w">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719v"></script>
-<script src="assets/js/lists.js?v=20260719v"></script>
-<script src="assets/js/config.js?v=20260719v"></script>
-<script src="assets/js/db.js?v=20260719v"></script>
-<script src="assets/js/billing.js?v=20260719v"></script>
-<script src="assets/js/auth.js?v=20260719v"></script>
-<script src="assets/js/ui.js?v=20260719v"></script>
-<script src="assets/js/layout.js?v=20260719v"></script>
+<script src="assets/js/i18n.js?v=20260719w"></script>
+<script src="assets/js/lists.js?v=20260719w"></script>
+<script src="assets/js/config.js?v=20260719w"></script>
+<script src="assets/js/db.js?v=20260719w"></script>
+<script src="assets/js/billing.js?v=20260719w"></script>
+<script src="assets/js/auth.js?v=20260719w"></script>
+<script src="assets/js/ui.js?v=20260719w"></script>
+<script src="assets/js/layout.js?v=20260719w"></script>
 <script>
 const ctx = LAYOUT.render('job-orders');
 if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
@@ -134,21 +134,24 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
       <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_job_order'}"></h3><button type="button" class="close-x" id="mClose">&times;</button></div>
       <div class="modal-body">
         <div class="field">
-          <label data-i18n="job_client_type"></label>
-          <div class="radio-group">
-            <label class="radio-card ${!editing || !job.clientId ? 'active' : ''}"><input type="radio" name="fClientType" value="new" ${!editing || !job.clientId ? 'checked' : ''}><span data-i18n="job_client_walkin"></span></label>
-            <label class="radio-card ${editing && job.clientId ? 'active' : ''}"><input type="radio" name="fClientType" value="existing" ${editing && job.clientId ? 'checked' : ''}><span data-i18n="job_client_existing"></span></label>
-          </div>
+          <label data-i18n="job_pick_existing_client"></label>
+          <select id="fExistingClient">
+            <option value="" data-i18n="job_client_walkin"></option>
+            ${clients.map(c=>`<option value="${c.id}" ${editing && job.clientId===c.id?'selected':''}>${c.name} — ${c.phone||''}</option>`).join('')}
+          </select>
+          <p class="hint" data-i18n="job_pick_existing_client_hint" style="margin-top:4px;"></p>
         </div>
-        <div class="field" id="newClientWrap" style="${editing && job.clientId ? 'display:none;' : ''}">
-          <div class="field-row">
-            <div class="field"><label data-i18n="full_name"></label><input type="text" id="fName" value="${editing?(job.clientName||''):''}"></div>
-            <div class="field"><label data-i18n="phone"></label><input type="tel" id="fPhone" value="${editing?(job.clientPhone||''):''}"></div>
-          </div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="full_name"></label><input type="text" id="fName" value="${editing?(job.clientName||''):''}"></div>
+          <div class="field"><label data-i18n="phone"></label><input type="tel" id="fPhone" value="${editing?(job.clientPhone||''):''}"></div>
         </div>
-        <div class="field" id="existingClientWrap" style="${!editing || !job.clientId ? 'display:none;' : ''}">
-          <label data-i18n="job_client_existing"></label>
-          <select id="fExistingClient">${clients.map(c=>`<option value="${c.id}" ${editing && job.clientId===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
+        <div class="field-row">
+          <div class="field"><label data-i18n="email"></label><input type="email" id="fClientEmail" value="${editing && job.clientId ? ((clients.find(c=>c.id===job.clientId)||{}).email||'') : ''}"></div>
+          <div class="field"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="client_cr"></label><input type="text" id="fClientCr" value="${editing && job.clientId ? ((clients.find(c=>c.id===job.clientId)||{}).crNumber||'') : ''}"></div>
+          <div class="field"><label data-i18n="client_tax_number"></label><input type="text" id="fClientTax" value="${editing && job.clientId ? ((clients.find(c=>c.id===job.clientId)||{}).taxNumber||'') : ''}"></div>
         </div>
 
         <div class="field">
@@ -217,34 +220,48 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
       drawServices(newService.id);
     });
 
-    overlay.querySelectorAll('.radio-card').forEach(card=>{
-      card.addEventListener('click', ()=>{
-        const group = card.closest('.radio-group');
-        group.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
-        card.classList.add('active');
-        const input = card.querySelector('input');
-        input.checked = true;
-        if(input.name === 'fClientType'){
-          overlay.querySelector('#newClientWrap').style.display = input.value==='new' ? '' : 'none';
-          overlay.querySelector('#existingClientWrap').style.display = input.value==='existing' ? '' : 'none';
-        }
-      });
+    overlay.querySelector('#fExistingClient').addEventListener('change', (e)=>{
+      const c = clients.find(x=>x.id===e.target.value);
+      if(c){
+        overlay.querySelector('#fName').value = c.name || '';
+        overlay.querySelector('#fPhone').value = c.phone || '';
+        overlay.querySelector('#fClientEmail').value = c.email || '';
+        overlay.querySelector('#fClientCr').value = c.crNumber || '';
+        overlay.querySelector('#fClientTax').value = c.taxNumber || '';
+      }
     });
 
     overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mSave').addEventListener('click', ()=>{
-      const isExisting = overlay.querySelector('input[name=fClientType]:checked').value === 'existing';
-      let clientId = null, clientName = '', clientPhone = '';
-      if(isExisting){
-        const c = clients.find(x=>x.id===overlay.querySelector('#fExistingClient').value);
-        if(c){ clientId = c.id; clientName = c.name; clientPhone = c.phone; }
-      } else {
-        clientName = overlay.querySelector('#fName').value.trim();
-        clientPhone = overlay.querySelector('#fPhone').value.trim();
-      }
+      const clientName = overlay.querySelector('#fName').value.trim();
+      const clientPhone = overlay.querySelector('#fPhone').value.trim();
+      const clientEmail = overlay.querySelector('#fClientEmail').value.trim();
+      const clientCr = overlay.querySelector('#fClientCr').value.trim();
+      const clientTax = overlay.querySelector('#fClientTax').value.trim();
       const amount = Number(overlay.querySelector('#fAmount').value || 0);
-      if(!clientName || !amount){ UI.toast(I18N.t('err_required'), 'error'); return; }
+      if(!clientName || !clientPhone || !amount){ UI.toast(I18N.t('err_required'), 'error'); return; }
+
+      // Every job-order client is always a real, permanent client record —
+      // reuse the one explicitly picked, or one matching this phone
+      // number, or create a brand new one.
+      let clientId = overlay.querySelector('#fExistingClient').value || null;
+      if(!clientId){
+        const existingByPhone = DB.all('clients').find(c=>c.phone && c.phone===clientPhone);
+        if(existingByPhone) clientId = existingByPhone.id;
+      }
+      const clientPatch = {
+        name: clientName, nameAr: clientName, phone: clientPhone,
+        email: clientEmail, crNumber: clientCr, taxNumber: clientTax,
+      };
+      if(clientId){
+        DB.update('clients', clientId, clientPatch);
+      } else {
+        const newClient = DB.insert('clients', Object.assign({}, clientPatch, { country:'', address:'', createdAt: DB.todayISO() }));
+        clientId = newClient.id;
+        DB.logActivity('تم تسجيل عميل جديد من تنفيذ بالطلب: ' + clientName, 'New client registered from a job order: ' + clientName, 'client');
+      }
+
       const serviceOpt = serviceSelect.selectedOptions[0];
       const requestDate = overlay.querySelector('#fDate').value;
 
