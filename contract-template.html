@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191h">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191j">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191h"></script>
-<script src="assets/js/lists.js?v=202607191h"></script>
-<script src="assets/js/config.js?v=202607191h"></script>
-<script src="assets/js/db.js?v=202607191h"></script>
-<script src="assets/js/billing.js?v=202607191h"></script>
-<script src="assets/js/auth.js?v=202607191h"></script>
-<script src="assets/js/ui.js?v=202607191h"></script>
-<script src="assets/js/layout.js?v=202607191h"></script>
+<script src="assets/js/i18n.js?v=202607191j"></script>
+<script src="assets/js/lists.js?v=202607191j"></script>
+<script src="assets/js/config.js?v=202607191j"></script>
+<script src="assets/js/db.js?v=202607191j"></script>
+<script src="assets/js/billing.js?v=202607191j"></script>
+<script src="assets/js/auth.js?v=202607191j"></script>
+<script src="assets/js/ui.js?v=202607191j"></script>
+<script src="assets/js/layout.js?v=202607191j"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -39,6 +39,12 @@ if(ctx){
       contentEl.innerHTML = `<div class="empty-state">${I18N.t('no_data')}</div>`;
       return;
     }
+    // A real hand-drawn signature PNG is at least a few KB; a blank canvas
+    // (from the earlier signature-pad bug, where a tap with no drag could
+    // save an empty image) compresses to well under 1KB. Treat those as
+    // unsigned so the person can sign again instead of being stuck behind
+    // an invisible lock.
+    const hasValidSignature = !!(contract.signature && contract.signature.length > 1000);
     const client = DB.get('clients', contract.clientId);
     const steps = ['status_active','status_renewal','status_closed'];
     const currentIdx = contract.status==='cancelled' ? -1 : steps.indexOf(contract.status==='active'?'status_active':contract.status==='renewal'?'status_renewal':'status_closed');
@@ -128,6 +134,11 @@ if(ctx){
         <h4 data-i18n="terms_conditions" style="margin:0 0 10px;"></h4>
         <div class="terms-box" style="max-height:none; margin-bottom:26px;">${settings.terms}</div>
 
+        ${settings.companyStamp ? `
+        <div style="display:flex; justify-content:center; margin-bottom:18px;">
+          <img src="${settings.companyStamp}" style="width:100px; height:100px; object-fit:contain;" alt="stamp">
+        </div>` : ''}
+
         <div class="grid grid-2">
           <div>
             <h4 data-i18n="signature" style="margin:0 0 10px;"></h4>
@@ -135,11 +146,10 @@ if(ctx){
             ${settings.companySignature
               ? `<img src="${settings.companySignature}" style="max-height:70px; margin-bottom:4px;">`
               : `<div style="height:70px; border-bottom:1.5px solid var(--ink-mute);"></div>`}
-            ${settings.companyStamp ? `<img src="${settings.companyStamp}" style="max-height:80px; margin-top:6px;" alt="stamp">` : ''}
           </div>
           <div>
             <h4 data-i18n="client_signature" style="margin:0 0 10px;"></h4>
-            ${contract.signature ? `
+            ${hasValidSignature ? `
               <img id="sigImg" src="${contract.signature}" style="max-height:110px; border:1px solid var(--line); border-radius:8px; padding:8px; background:#fff;">
               <div class="text-muted no-print" style="font-size:11.5px; margin-top:8px;" data-i18n="signature_locked_hint"></div>
               ${isAdmin ? `<button type="button" class="btn btn-sm btn-outline no-print" id="reopenSig" style="margin-top:8px;" data-i18n="reopen_for_signature"></button>` : ''}
@@ -158,7 +168,7 @@ if(ctx){
 
     contentEl.querySelector('#printBtn').addEventListener('click', ()=>window.print());
 
-    if(contract.signature){
+    if(hasValidSignature){
       const reopenBtn = contentEl.querySelector('#reopenSig');
       if(reopenBtn){
         reopenBtn.addEventListener('click', ()=>{

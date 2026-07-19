@@ -271,16 +271,30 @@ const UI = (function(){
       const t = e.touches ? e.touches[0] : e;
       return { x: (t.clientX-rect.left) * (canvas.width/rect.width), y: (t.clientY-rect.top) * (canvas.height/rect.height) };
     }
-    function start(e){ drawing=true; has=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
-    function move(e){ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }
+    // `has` only becomes true once a line is actually drawn (in move()) —
+    // NOT on mousedown/touchstart alone. Otherwise a single tap with no
+    // drag would save a blank, invisible signature and permanently lock
+    // the contract (the person has no way to tell anything is wrong).
+    function start(e){ drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+    function move(e){ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); has=true; e.preventDefault(); }
     function end(){ drawing=false; }
     canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move);
     window.addEventListener('mouseup', end);
     canvas.addEventListener('touchstart', start); canvas.addEventListener('touchmove', move);
     canvas.addEventListener('touchend', end);
+    // Second line of defense: even if `has` somehow got out of sync,
+    // verify the canvas actually has visible (non-transparent) pixels
+    // before treating it as signed.
+    function hasVisiblePixels(){
+      try{
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        for(let i = 3; i < data.length; i += 4){ if(data[i] !== 0) return true; }
+        return false;
+      }catch(e){ return has; }
+    }
     return {
       clear(){ ctx.clearRect(0,0,canvas.width,canvas.height); has=false; },
-      isEmpty(){ return !has; },
+      isEmpty(){ return !has || !hasVisiblePixels(); },
       toDataURL(){ return canvas.toDataURL('image/png'); }
     };
   }
