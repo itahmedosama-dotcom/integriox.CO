@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191g">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191h">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191g"></script>
-<script src="assets/js/lists.js?v=202607191g"></script>
-<script src="assets/js/config.js?v=202607191g"></script>
-<script src="assets/js/db.js?v=202607191g"></script>
-<script src="assets/js/billing.js?v=202607191g"></script>
-<script src="assets/js/auth.js?v=202607191g"></script>
-<script src="assets/js/ui.js?v=202607191g"></script>
-<script src="assets/js/layout.js?v=202607191g"></script>
+<script src="assets/js/i18n.js?v=202607191h"></script>
+<script src="assets/js/lists.js?v=202607191h"></script>
+<script src="assets/js/config.js?v=202607191h"></script>
+<script src="assets/js/db.js?v=202607191h"></script>
+<script src="assets/js/billing.js?v=202607191h"></script>
+<script src="assets/js/auth.js?v=202607191h"></script>
+<script src="assets/js/ui.js?v=202607191h"></script>
+<script src="assets/js/layout.js?v=202607191h"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -120,6 +120,11 @@ if(ctx){
           </div>`;
         })()}
 
+        ${contract.agreementDetails ? `
+        <h4 data-i18n="agreement_details" style="margin:0 0 10px;"></h4>
+        <div class="terms-box" style="max-height:none; margin-bottom:26px; white-space:pre-wrap;">${contract.agreementDetails}</div>
+        ` : ''}
+
         <h4 data-i18n="terms_conditions" style="margin:0 0 10px;"></h4>
         <div class="terms-box" style="max-height:none; margin-bottom:26px;">${settings.terms}</div>
 
@@ -127,7 +132,10 @@ if(ctx){
           <div>
             <h4 data-i18n="signature" style="margin:0 0 10px;"></h4>
             <div class="text-muted" style="font-size:12px; margin-bottom:8px;">${settings.companyName} — <span data-i18n="signature"></span></div>
-            <div style="height:70px; border-bottom:1.5px solid var(--ink-mute);"></div>
+            ${settings.companySignature
+              ? `<img src="${settings.companySignature}" style="max-height:70px; margin-bottom:4px;">`
+              : `<div style="height:70px; border-bottom:1.5px solid var(--ink-mute);"></div>`}
+            ${settings.companyStamp ? `<img src="${settings.companyStamp}" style="max-height:80px; margin-top:6px;" alt="stamp">` : ''}
           </div>
           <div>
             <h4 data-i18n="client_signature" style="margin:0 0 10px;"></h4>

@@ -50,6 +50,8 @@ const DB = (function(){
         companyTaxNumber: '',
         bankName: '',
         iban: '',
+        companySignature: '',
+        companyStamp: '',
         // Service catalog for one-off job orders (تنفيذ بالطلب) — starts
         // empty; the admin adds services as needed directly from that
         // screen.
