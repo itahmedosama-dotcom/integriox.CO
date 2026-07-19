@@ -295,7 +295,12 @@ html[dir="rtl"] .main{ margin-right:var(--sidebar-w); }
 /* ---------- misc ---------- */
 .empty-state{ text-align:center; padding:60px 20px; color:var(--ink-mute); }
 .empty-state svg{ width:56px; height:56px; margin-bottom:14px; opacity:.5; }
-.toast-wrap{ position:fixed; top:20px; inset-inline-end:20px; z-index:400; display:flex; flex-direction:column; gap:10px; max-width:90vw; }
+.toast-wrap{
+  position:fixed; bottom:26px; left:50%; transform:translateX(-50%); z-index:400;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  max-width:92vw;
+}
+.toast-wrap .toast{ max-width:560px; text-align:center; }
 .toast{ background:var(--navy); color:#fff; padding:13px 20px; border-radius:var(--radius-sm); box-shadow:var(--shadow-md); font-size:13px; font-weight:600; min-width:220px; animation:toast-in .25s ease; }
 .toast.success{ background:var(--success); }
 .toast.error{ background:var(--danger); }
