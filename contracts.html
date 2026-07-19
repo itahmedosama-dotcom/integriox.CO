@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719o">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719u">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719o"></script>
-<script src="assets/js/lists.js?v=20260719o"></script>
-<script src="assets/js/config.js?v=20260719o"></script>
-<script src="assets/js/db.js?v=20260719o"></script>
-<script src="assets/js/billing.js?v=20260719o"></script>
-<script src="assets/js/auth.js?v=20260719o"></script>
-<script src="assets/js/ui.js?v=20260719o"></script>
-<script src="assets/js/layout.js?v=20260719o"></script>
+<script src="assets/js/i18n.js?v=20260719u"></script>
+<script src="assets/js/lists.js?v=20260719u"></script>
+<script src="assets/js/config.js?v=20260719u"></script>
+<script src="assets/js/db.js?v=20260719u"></script>
+<script src="assets/js/billing.js?v=20260719u"></script>
+<script src="assets/js/auth.js?v=20260719u"></script>
+<script src="assets/js/ui.js?v=20260719u"></script>
+<script src="assets/js/layout.js?v=20260719u"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -53,12 +53,14 @@ if(ctx){
         </select>
         ${isAdmin ? `<button type="button" class="btn btn-primary" id="addBtn" data-i18n="add_contract"></button>` : ''}
       </div>
+      <div id="contractsSummary" class="text-muted" style="font-size:13px; margin-bottom:12px;"></div>
       <div class="card">
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th data-i18n="contract_id"></th><th data-i18n="contract_client"></th><th data-i18n="contract_amount"></th>
-              <th data-i18n="contract_type"></th><th data-i18n="contract_duration"></th><th data-i18n="contract_status"></th><th data-i18n="actions"></th>
+              <th>#</th><th data-i18n="contract_id"></th><th data-i18n="contract_client"></th><th data-i18n="contract_amount"></th>
+              <th data-i18n="contract_type"></th><th data-i18n="contract_duration"></th><th data-i18n="contract_period_dates"></th>
+              <th data-i18n="contract_status"></th><th data-i18n="actions"></th>
             </tr></thead>
             <tbody id="rows"></tbody>
           </table>
@@ -79,20 +81,38 @@ if(ctx){
         return matchesText && matchesStatus;
       });
       contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
-      rowsEl.innerHTML = list.map(c=>{
+      // count + total value (grouped by currency, since summing different
+      // currencies together would be misleading)
+      const summaryEl = contentEl.querySelector('#contractsSummary');
+      if(summaryEl){
+        const totalsByCurrency = {};
+        list.forEach(c=>{
+          const cur = c.currency || 'SAR';
+          totalsByCurrency[cur] = (totalsByCurrency[cur]||0) + Number(c.amount||0);
+        });
+        const totalsText = Object.keys(totalsByCurrency).map(cur=>UI.fmtMoney(totalsByCurrency[cur], cur)).join(' + ');
+        summaryEl.innerHTML = `<strong>${list.length}</strong> ${I18N.t('contracts_count_label')} · <strong>${totalsText || UI.fmtMoney(0)}</strong> ${I18N.t('contracts_total_value_label')}`;
+      }
+      rowsEl.innerHTML = list.map((c,idx)=>{
         const client = clients.find(x=>x.id===c.clientId);
-        const daysLeft = (c.status==='active' && c.periodType==='fixed' && c.endDate)
-          ? Math.round((new Date(c.endDate) - new Date(DB.todayISO())) / 86400000) : null;
-        const nearRenewal = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30;
-        return `<tr ${nearRenewal ? 'style="background:var(--warning-bg);"' : ''}>
+        const renewalInfo = BILLING.contractsNearingRenewal().find(r=>r.id===c.id);
+        const nearRenewal = !!renewalInfo;
+        const daysLeft = renewalInfo ? renewalInfo.daysLeft : null;
+        const visitsLeftText = (nearRenewal && renewalInfo.visitsRemaining !== null) ? ` · ${I18N.t('visits_remaining')}: ${renewalInfo.visitsRemaining}` : '';
+        return `<tr ${nearRenewal ? 'class="row-flash" style="background:var(--warning-bg);"' : ''}>
+          <td class="text-muted">${idx+1}</td>
           <td><strong>${c.id}</strong></td>
           <td>${client?client.name:'—'}</td>
           <td>${UI.fmtMoney(c.amount, c.currency)}</td>
           <td><span data-i18n="${typeLabel[c.contractType]}"></span></td>
           <td>${c.durationMonths} <span data-i18n="months"></span> · <span data-i18n="${c.periodType==='open'?'period_open':'period_fixed'}"></span></td>
+          <td style="font-size:12px;">
+            <div>${I18N.t('contract_start')}: ${UI.fmtDate(c.startDate)}</div>
+            <div>${I18N.t('contract_end')}: ${c.endDate ? UI.fmtDate(c.endDate) : '—'}</div>
+          </td>
           <td>
             <span class="badge ${statusBadge[c.status]}" data-i18n="status_${c.status==='active'?'active':c.status}"></span>
-            ${nearRenewal ? `<span class="badge" style="background:#F5C244; color:#5a3d00;">${I18N.t('contract_renewal_soon')} (${daysLeft})</span>` : ''}
+            ${nearRenewal ? `<span class="badge" style="background:#F5C244; color:#5a3d00;">⚠️ ${I18N.t('contract_renewal_soon')} (${daysLeft} ${I18N.t('days_late')})${visitsLeftText}</span>` : ''}
           </td>
           <td class="row-actions">
             <a class="btn btn-sm btn-outline" href="contract-template.html?id=${c.id}" data-i18n="view_contract"></a>
@@ -140,13 +160,22 @@ if(ctx){
           </div>
         </div>
         <h4 style="margin:18px 0 12px; font-size:12.5px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:.5px;" data-i18n="contract_section_period"></h4>
-        <div class="field"><label data-i18n="contract_duration"></label><input type="number" id="fDuration" min="1" value="${editing?contract.durationMonths:12}"></div>
+        <div class="field">
+          <label data-i18n="contract_duration"></label>
+          <input type="number" id="fDuration" min="1" value="${editing?contract.durationMonths:12}">
+          <p class="hint" data-i18n="contract_duration_hint" style="margin-top:4px;"></p>
+        </div>
         <div class="field">
           <label data-i18n="contract_period_type"></label>
           <div class="radio-group">
             <label class="radio-card ${!editing || contract.periodType==='fixed'?'active':''}"><input type="radio" name="fPeriod" value="fixed" ${!editing || contract.periodType==='fixed'?'checked':''}><span data-i18n="period_fixed"></span></label>
             <label class="radio-card ${editing && contract.periodType==='open'?'active':''}"><input type="radio" name="fPeriod" value="open" ${editing && contract.periodType==='open'?'checked':''}><span data-i18n="period_open"></span></label>
           </div>
+        </div>
+        <div class="field" id="renewalNoticeWrap" style="${editing && contract.periodType==='open' ? 'display:none;' : ''}">
+          <label data-i18n="renewal_notice_days"></label>
+          <input type="number" id="fRenewalNotice" min="1" value="${editing?(contract.renewalNoticeDays||60):60}">
+          <p class="hint" data-i18n="renewal_notice_days_hint" style="margin-top:4px;"></p>
         </div>
         <div class="field">
           <label data-i18n="contract_type"></label>
@@ -160,6 +189,17 @@ if(ctx){
         <div class="field-row">
           <div class="field"><label data-i18n="contract_start"></label><input type="date" id="fStart" value="${editing?contract.startDate:DB.todayISO()}"></div>
           <div class="field"><label data-i18n="contract_end"></label><input type="date" id="fEnd" value="${editing?(contract.endDate||''):''}"></div>
+        </div>
+        <div class="field">
+          <label data-i18n="visit_frequency"></label>
+          <select id="fFrequency">
+            <option value="weekly" data-i18n="freq_weekly" ${editing && contract.visitFrequency==='weekly'?'selected':''}></option>
+            <option value="monthly" data-i18n="freq_monthly" ${!editing || !contract || !contract.visitFrequency || contract.visitFrequency==='monthly'?'selected':''}></option>
+            <option value="bimonthly" data-i18n="freq_bimonthly" ${editing && contract.visitFrequency==='bimonthly'?'selected':''}></option>
+            <option value="quarterly" data-i18n="freq_quarterly" ${editing && contract.visitFrequency==='quarterly'?'selected':''}></option>
+            <option value="custom" data-i18n="freq_custom" ${editing && contract.visitFrequency==='custom'?'selected':''}></option>
+          </select>
+          <p class="hint" data-i18n="visit_frequency_hint" style="margin-top:4px;"></p>
         </div>
         <div class="field">
           <label data-i18n="contract_visits_total"></label>
@@ -179,6 +219,11 @@ if(ctx){
           </div>
         </div>
         <h4 style="margin:6px 0 12px; font-size:12.5px; color:var(--ink-mute); text-transform:uppercase; letter-spacing:.5px;" data-i18n="contract_section_payment"></h4>
+        <div class="field ${editing && contract.paymentTerms==='deferred' ? 'hidden' : ''}" id="upfrontDueWrap">
+          <label data-i18n="upfront_due_date"></label>
+          <input type="date" id="fUpfrontDue" value="${editing?(contract.upfrontDueDate||DB.todayISO()):DB.todayISO()}">
+          <p class="hint" data-i18n="upfront_due_date_hint" style="margin-top:4px;"></p>
+        </div>
         <div class="field ${editing && contract.paymentTerms==='deferred' ? '' : 'hidden'}" id="dueDayWrap">
           <label data-i18n="billing_cycle"></label>
           <div class="radio-group" style="margin-bottom:12px;">
@@ -267,8 +312,21 @@ if(ctx){
     });
 
     const dueDayWrap = overlay.querySelector('#dueDayWrap');
+    const upfrontDueWrap = overlay.querySelector('#upfrontDueWrap');
 
     const visitsInput = overlay.querySelector('#fVisits');
+    const frequencySelect = overlay.querySelector('#fFrequency');
+    const durationInput = overlay.querySelector('#fDuration');
+    const visitsPerMonth = { weekly:4, monthly:1, bimonthly:0.5, quarterly:1/3 };
+    function recalcVisits(){
+      const freq = frequencySelect.value;
+      if(freq === 'custom') return; // admin controls the number directly
+      const months = Number(durationInput.value || 0);
+      visitsInput.value = Math.max(0, Math.round(months * (visitsPerMonth[freq] || 1)));
+    }
+    frequencySelect.addEventListener('change', recalcVisits);
+    durationInput.addEventListener('input', recalcVisits);
+    if(!editing) recalcVisits(); // seed the default (monthly × 12 months) right away
     overlay.querySelector('#fVisitsUnlimited').addEventListener('change', (e)=>{
       visitsInput.disabled = e.target.checked;
     });
@@ -281,6 +339,10 @@ if(ctx){
         input.checked = true;
         if(input.name === 'fPay'){
           dueDayWrap.classList.toggle('hidden', input.value !== 'deferred');
+          upfrontDueWrap.classList.toggle('hidden', input.value !== 'upfront');
+        }
+        if(input.name === 'fPeriod'){
+          overlay.querySelector('#renewalNoticeWrap').style.display = input.value === 'open' ? 'none' : '';
         }
       });
     });
@@ -297,13 +359,16 @@ if(ctx){
         currency: currencySelect.value,
         durationMonths: Number(overlay.querySelector('#fDuration').value||12),
         periodType: overlay.querySelector('input[name=fPeriod]:checked').value,
+        renewalNoticeDays: Number(overlay.querySelector('#fRenewalNotice').value || 60),
         contractType: overlay.querySelector('#fType').value,
         startDate: overlay.querySelector('#fStart').value,
         endDate: overlay.querySelector('#fEnd').value,
         visitsTotal: visitsUnlimited ? null : Number(visitsInput.value||0),
+        visitFrequency: frequencySelect.value,
         visitsUnlimited,
         paymentTerms: payTerms,
         billingCycle: payTerms==='deferred' ? (cycleInput ? cycleInput.value : 'monthly') : null,
+        upfrontDueDate: payTerms==='upfront' ? overlay.querySelector('#fUpfrontDue').value : null,
         paymentDueDay: payTerms==='deferred' ? Number(overlay.querySelector('#fDueDay').value||1) : null,
         taxIds,
       };
@@ -324,11 +389,12 @@ if(ctx){
         // confirmation — confirming it there is what actually issues the
         // invoice (see payments.html). Nothing reaches Invoices on its own.
         if(data.paymentTerms === 'upfront' && data.amount > 0){
+          const dueDate = data.upfrontDueDate || DB.todayISO();
           const payment = {
             id: DB.nextSeqId('PAY', 'payments'),
             contractId: data.id, clientId: data.clientId,
-            amount: data.amount, method: 'bank', date: DB.todayISO(), status: 'review',
-            description: BILLING.paymentDescription(data.id, DB.todayISO()),
+            amount: data.amount, method: 'bank', date: dueDate, status: 'review',
+            description: BILLING.paymentDescription(data.id, dueDate),
           };
           DB.insert('payments', payment);
           DB.logActivity('تم إنشاء دفعة بانتظار التأكيد للعقد ' + data.id, 'Pending payment created for contract ' + data.id, 'payment');

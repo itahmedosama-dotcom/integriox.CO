@@ -186,10 +186,17 @@ textarea{ resize:vertical; min-height:90px; }
 .table-wrap{ overflow-x:auto; }
 table{ width:100%; border-collapse:collapse; font-size:13.5px; }
 th{ text-align:start; padding:12px 14px; color:var(--ink-mute); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.03em; border-bottom:2px solid var(--line); white-space:nowrap; }
-td{ padding:13px 14px; border-bottom:1px solid var(--line); vertical-align:middle; }
+td{ padding:14px; border-bottom:1px solid var(--line); vertical-align:middle; }
 tbody tr{ transition:background .12s; }
+tbody tr:nth-child(even){ background:rgba(46,119,188,0.025); }
 tbody tr:hover{ background:var(--sky-50); }
-.row-actions{ display:flex; gap:6px; }
+.row-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+.table-row-num{ color:var(--ink-mute); font-size:12.5px; width:1%; white-space:nowrap; }
+.table-summary-bar{
+  display:flex; flex-wrap:wrap; gap:18px; padding:14px 18px; background:var(--sky-50);
+  border-top:1px solid var(--line); font-size:13px; color:var(--ink-soft);
+}
+.table-summary-bar strong{ color:var(--navy); }
 .avatar{
   width:34px; height:34px; border-radius:50%; background:var(--sky-100); color:var(--blue-600);
   display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;
@@ -373,6 +380,13 @@ html[dir="rtl"] .pwa-install-float{ padding:11px 14px 11px 16px; }
   .pwa-install-float .pwa-install-label{ display:none; }
   .pwa-install-float{ padding:11px; bottom:80px; }
 }
+
+/* ---------- renewal-soon row flash ---------- */
+@keyframes row-flash-pulse{
+  0%, 100% { background-color: var(--warning-bg); }
+  50% { background-color: #FDE9B8; }
+}
+.row-flash{ animation: row-flash-pulse 1.8s ease-in-out infinite; }
 
 /* ---------- notification bell dropdown ---------- */
 .notif-panel{

@@ -139,6 +139,17 @@ const LAYOUT = (function(){
       if(newComplaints) items.push({ textAr:`${newComplaints} شكوى جديدة`, textEn:`${newComplaints} new complaint(s)`, href:'complaints.html' });
       const newVisits = DB.all('visits').filter(v=>v.status==='requested').length;
       if(newVisits) items.push({ textAr:`${newVisits} طلب زيارة جديد`, textEn:`${newVisits} new visit request(s)`, href:'visits.html' });
+      const renewals = window.BILLING ? BILLING.contractsNearingRenewal() : [];
+      if(renewals.length){
+        const soonest = renewals[0];
+        const visitsNote = soonest.visitsRemaining !== null ? ` — ${soonest.visitsRemaining} زيارة متبقية` : '';
+        const visitsNoteEn = soonest.visitsRemaining !== null ? ` — ${soonest.visitsRemaining} visits left` : '';
+        items.push({
+          textAr: `${renewals.length} عقد قريب من الانتهاء (أقربهم ${soonest.id} خلال ${soonest.daysLeft} يوم${visitsNote})`,
+          textEn: `${renewals.length} contract(s) nearing renewal (soonest: ${soonest.id} in ${soonest.daysLeft} day(s)${visitsNoteEn})`,
+          href: 'contracts.html',
+        });
+      }
       const resetRequests = DB.all('users').filter(u=>u.passwordResetRequested).length;
       if(resetRequests) items.push({ textAr:`${resetRequests} طلب إعادة تعيين كلمة مرور`, textEn:`${resetRequests} password reset request(s)`, href:'settings.html' });
     } else if(user.role === 'client'){

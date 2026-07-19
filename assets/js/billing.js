@@ -114,5 +114,17 @@ const BILLING = (function(){
       : `${base} — voucher No. ${paymentId}`;
   }
 
-  return { contractTaxes, invoiceBreakdown, runAutoInvoices, overdueInvoices, paymentDescription, invoiceDescription, monthYearLabel };
+  // Active, fixed-period contracts within THEIR OWN configured renewal
+  // notice period (contract.renewalNoticeDays, defaulting to 60 if not
+  // set), with remaining visits info.
+  function contractsNearingRenewal(){
+    const today = DB.todayISO();
+    return DB.all('contracts').filter(c=>c.status==='active' && c.periodType==='fixed' && c.endDate).map(c=>{
+      const daysLeft = Math.round((new Date(c.endDate) - new Date(today)) / 86400000);
+      const noticeDays = Number(c.renewalNoticeDays) || 60;
+      return Object.assign({}, c, { daysLeft, noticeDays, visitsRemaining: c.visitsUnlimited ? null : Math.max(0,(c.visitsTotal||0)-(c.visitsUsed||0)) });
+    }).filter(c=>c.daysLeft >= 0 && c.daysLeft <= c.noticeDays).sort((a,b)=>a.daysLeft-b.daysLeft);
+  }
+
+  return { contractTaxes, invoiceBreakdown, runAutoInvoices, overdueInvoices, paymentDescription, invoiceDescription, monthYearLabel, contractsNearingRenewal };
 })();
