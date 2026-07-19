@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191e">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191f">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191e"></script>
-<script src="assets/js/lists.js?v=202607191e"></script>
-<script src="assets/js/config.js?v=202607191e"></script>
-<script src="assets/js/db.js?v=202607191e"></script>
-<script src="assets/js/billing.js?v=202607191e"></script>
-<script src="assets/js/auth.js?v=202607191e"></script>
-<script src="assets/js/ui.js?v=202607191e"></script>
-<script src="assets/js/layout.js?v=202607191e"></script>
+<script src="assets/js/i18n.js?v=202607191f"></script>
+<script src="assets/js/lists.js?v=202607191f"></script>
+<script src="assets/js/config.js?v=202607191f"></script>
+<script src="assets/js/db.js?v=202607191f"></script>
+<script src="assets/js/billing.js?v=202607191f"></script>
+<script src="assets/js/auth.js?v=202607191f"></script>
+<script src="assets/js/ui.js?v=202607191f"></script>
+<script src="assets/js/layout.js?v=202607191f"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -53,13 +53,13 @@ if(ctx){
         </select>
         ${isAdmin ? `<button type="button" class="btn btn-primary" id="addBtn" data-i18n="add_contract"></button>` : ''}
       </div>
-      <div id="contractsSummary" class="text-muted" style="font-size:13px; margin-bottom:12px;"></div>
+      ${isAdmin ? `<div id="contractsStats" class="grid grid-3" style="margin-bottom:18px;"></div>` : ''}
       <div class="card">
         <div class="table-wrap">
           <table>
             <thead><tr>
               <th>#</th><th data-i18n="contract_id"></th><th data-i18n="contract_client"></th><th data-i18n="contract_amount"></th>
-              <th data-i18n="contract_type"></th><th data-i18n="contract_duration"></th><th data-i18n="contract_period_dates"></th>
+              <th data-i18n="contract_type"></th><th data-i18n="contract_duration"></th><th data-i18n="contract_start"></th><th data-i18n="contract_end"></th>
               <th data-i18n="contract_status"></th><th data-i18n="actions"></th>
             </tr></thead>
             <tbody id="rows"></tbody>
@@ -81,18 +81,66 @@ if(ctx){
         return matchesText && matchesStatus;
       });
       contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
-      // count + total value (grouped by currency, since summing different
-      // currencies together would be misleading)
-      const summaryEl = contentEl.querySelector('#contractsSummary');
-      if(summaryEl){
-        const totalsByCurrency = {};
-        list.forEach(c=>{
-          const cur = c.currency || 'SAR';
-          totalsByCurrency[cur] = (totalsByCurrency[cur]||0) + Number(c.amount||0);
+
+      // overview stats — always reflect ALL contracts, independent of the
+      // current search/status filter, so they read as a stable summary.
+      const statsEl = contentEl.querySelector('#contractsStats');
+      if(statsEl){
+        // clients by type, among clients who have at least one contract
+        const clientTypeLabels = { contract:'client_type_contract', on_demand:'client_type_on_demand', both:'client_type_both', none:'client_type_none' };
+        const clientIdsWithContracts = Array.from(new Set(contracts.map(c=>c.clientId)));
+        const byClientType = {};
+        clientIdsWithContracts.forEach(cid=>{
+          const cl = clients.find(x=>x.id===cid);
+          const t = (cl && cl.clientType) || 'none';
+          byClientType[t] = (byClientType[t]||0) + 1;
         });
-        const totalsText = Object.keys(totalsByCurrency).map(cur=>UI.fmtMoney(totalsByCurrency[cur], cur)).join(' + ');
-        summaryEl.innerHTML = `<strong>${list.length}</strong> ${I18N.t('contracts_count_label')} · <strong>${totalsText || UI.fmtMoney(0)}</strong> ${I18N.t('contracts_total_value_label')}`;
+
+        // total contract amounts by contract type (grouped by currency too,
+        // to avoid summing different currencies together)
+        const byContractType = {};
+        contracts.forEach(c=>{
+          const t = c.contractType || 'all';
+          const cur = c.currency || 'SAR';
+          byContractType[t] = byContractType[t] || {};
+          byContractType[t][cur] = (byContractType[t][cur]||0) + Number(c.amount||0);
+        });
+
+        const activeCount = contracts.filter(c=>c.status==='active').length;
+        const inactiveCount = contracts.length - activeCount;
+
+        statsEl.innerHTML = `
+          <div class="card">
+            <h4 style="margin:0 0 12px; font-size:13px;" data-i18n="stats_clients_by_type"></h4>
+            ${Object.keys(clientTypeLabels).map(t=>`
+              <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:13px;">
+                <span data-i18n="${clientTypeLabels[t]}"></span><strong>${byClientType[t]||0}</strong>
+              </div>`).join('')}
+          </div>
+          <div class="card">
+            <h4 style="margin:0 0 12px; font-size:13px;" data-i18n="stats_amount_by_contract_type"></h4>
+            ${Object.keys(byContractType).length ? Object.keys(byContractType).map(t=>`
+              <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:13px;">
+                <span data-i18n="${typeLabel[t]}"></span>
+                <strong>${Object.keys(byContractType[t]).map(cur=>UI.fmtMoney(byContractType[t][cur], cur)).join(' + ')}</strong>
+              </div>`).join('') : `<div class="text-muted" style="font-size:12.5px;">${I18N.t('no_data')}</div>`}
+          </div>
+          <div class="card">
+            <h4 style="margin:0 0 12px; font-size:13px;" data-i18n="stats_contracts_status"></h4>
+            <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:13px;">
+              <span data-i18n="stats_active_contracts"></span><strong style="color:var(--success);">${activeCount}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:13px;">
+              <span data-i18n="stats_inactive_contracts"></span><strong style="color:var(--ink-mute);">${inactiveCount}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:13px; border-top:1px solid var(--line); margin-top:4px; padding-top:9px;">
+              <span data-i18n="contracts_count_label"></span><strong>${contracts.length}</strong>
+            </div>
+          </div>
+        `;
+        I18N.apply(statsEl);
       }
+
       rowsEl.innerHTML = list.map((c,idx)=>{
         const client = clients.find(x=>x.id===c.clientId);
         const renewalInfo = BILLING.contractsNearingRenewal().find(r=>r.id===c.id);
@@ -106,10 +154,8 @@ if(ctx){
           <td>${UI.fmtMoney(c.amount, c.currency)}</td>
           <td><span data-i18n="${typeLabel[c.contractType]}"></span></td>
           <td>${c.durationMonths} <span data-i18n="months"></span> · <span data-i18n="${c.periodType==='open'?'period_open':'period_fixed'}"></span></td>
-          <td style="font-size:12px;">
-            <div>${I18N.t('contract_start')}: ${UI.fmtDate(c.startDate)}</div>
-            <div>${I18N.t('contract_end')}: ${c.endDate ? UI.fmtDate(c.endDate) : '—'}</div>
-          </td>
+          <td>${UI.fmtDate(c.startDate)}</td>
+          <td>${c.endDate ? UI.fmtDate(c.endDate) : '—'}</td>
           <td>
             <span class="badge ${statusBadge[c.status]}" data-i18n="status_${c.status==='active'?'active':c.status}"></span>
             ${nearRenewal ? `<span class="badge" style="background:#F5C244; color:#5a3d00;">⚠️ ${I18N.t('contract_renewal_soon')} (${daysLeft} ${I18N.t('days_late')})${visitsLeftText}</span>` : ''}
