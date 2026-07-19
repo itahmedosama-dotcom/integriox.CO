@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191f">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191g">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191f"></script>
-<script src="assets/js/lists.js?v=202607191f"></script>
-<script src="assets/js/config.js?v=202607191f"></script>
-<script src="assets/js/db.js?v=202607191f"></script>
-<script src="assets/js/billing.js?v=202607191f"></script>
-<script src="assets/js/auth.js?v=202607191f"></script>
-<script src="assets/js/ui.js?v=202607191f"></script>
-<script src="assets/js/layout.js?v=202607191f"></script>
+<script src="assets/js/i18n.js?v=202607191g"></script>
+<script src="assets/js/lists.js?v=202607191g"></script>
+<script src="assets/js/config.js?v=202607191g"></script>
+<script src="assets/js/db.js?v=202607191g"></script>
+<script src="assets/js/billing.js?v=202607191g"></script>
+<script src="assets/js/auth.js?v=202607191g"></script>
+<script src="assets/js/ui.js?v=202607191g"></script>
+<script src="assets/js/layout.js?v=202607191g"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -108,6 +108,15 @@ if(ctx){
 
         const activeCount = contracts.filter(c=>c.status==='active').length;
         const inactiveCount = contracts.length - activeCount;
+        const totalClientsWithContracts = clientIdsWithContracts.length;
+        const totalByCurrency = {};
+        contracts.forEach(c=>{
+          const cur = c.currency || 'SAR';
+          totalByCurrency[cur] = (totalByCurrency[cur]||0) + Number(c.amount||0);
+        });
+        const totalAmountText = Object.keys(totalByCurrency).length
+          ? Object.keys(totalByCurrency).map(cur=>UI.fmtMoney(totalByCurrency[cur], cur)).join(' + ')
+          : UI.fmtMoney(0);
 
         statsEl.innerHTML = `
           <div class="card">
@@ -116,6 +125,9 @@ if(ctx){
               <div style="display:flex; justify-content:space-between; padding:5px 0; font-size:13px;">
                 <span data-i18n="${clientTypeLabels[t]}"></span><strong>${byClientType[t]||0}</strong>
               </div>`).join('')}
+            <div style="display:flex; justify-content:space-between; padding:9px 0 0; margin-top:4px; border-top:1px solid var(--line); font-size:13px;">
+              <span data-i18n="stats_total"></span><strong>${totalClientsWithContracts}</strong>
+            </div>
           </div>
           <div class="card">
             <h4 style="margin:0 0 12px; font-size:13px;" data-i18n="stats_amount_by_contract_type"></h4>
@@ -124,6 +136,9 @@ if(ctx){
                 <span data-i18n="${typeLabel[t]}"></span>
                 <strong>${Object.keys(byContractType[t]).map(cur=>UI.fmtMoney(byContractType[t][cur], cur)).join(' + ')}</strong>
               </div>`).join('') : `<div class="text-muted" style="font-size:12.5px;">${I18N.t('no_data')}</div>`}
+            <div style="display:flex; justify-content:space-between; padding:9px 0 0; margin-top:4px; border-top:1px solid var(--line); font-size:13px;">
+              <span data-i18n="stats_total"></span><strong>${totalAmountText}</strong>
+            </div>
           </div>
           <div class="card">
             <h4 style="margin:0 0 12px; font-size:13px;" data-i18n="stats_contracts_status"></h4>
