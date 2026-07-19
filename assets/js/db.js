@@ -50,6 +50,17 @@ const DB = (function(){
         companyTaxNumber: '',
         bankName: '',
         iban: '',
+        // Service catalog for one-off job orders (تنفيذ بالطلب) — editable
+        // and extendable directly from that screen, same pattern as
+        // currencies/taxes.
+        serviceTypes: [
+          { id:'svc_ac_repair', nameAr:'صيانة تكييف', nameEn:'AC repair', defaultPrice:0 },
+          { id:'svc_ac_install', nameAr:'تركيب تكييف', nameEn:'AC installation', defaultPrice:0 },
+          { id:'svc_plumbing', nameAr:'سباكة', nameEn:'Plumbing', defaultPrice:0 },
+          { id:'svc_electrical', nameAr:'كهرباء', nameEn:'Electrical', defaultPrice:0 },
+          { id:'svc_general', nameAr:'صيانة عامة', nameEn:'General maintenance', defaultPrice:0 },
+          { id:'svc_emergency', nameAr:'زيارة طارئة', nameEn:'Emergency visit', defaultPrice:0 },
+        ],
         // Per-country tax definitions — editable from Settings → الضرائب.
         // Seeded from LISTS.COUNTRIES with a sensible Saudi VAT default;
         // everything else starts disabled at 0% until the admin fills it in.
@@ -105,7 +116,8 @@ const DB = (function(){
       payments: [],
       invoices: [],
       activity: [],
-      complaints: []
+      complaints: [],
+      jobOrders: []
     };
   }
 

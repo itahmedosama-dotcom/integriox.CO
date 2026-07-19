@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719u">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719v">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719u"></script>
-<script src="assets/js/lists.js?v=20260719u"></script>
-<script src="assets/js/config.js?v=20260719u"></script>
-<script src="assets/js/db.js?v=20260719u"></script>
-<script src="assets/js/billing.js?v=20260719u"></script>
-<script src="assets/js/auth.js?v=20260719u"></script>
-<script src="assets/js/ui.js?v=20260719u"></script>
-<script src="assets/js/layout.js?v=20260719u"></script>
+<script src="assets/js/i18n.js?v=20260719v"></script>
+<script src="assets/js/lists.js?v=20260719v"></script>
+<script src="assets/js/config.js?v=20260719v"></script>
+<script src="assets/js/db.js?v=20260719v"></script>
+<script src="assets/js/billing.js?v=20260719v"></script>
+<script src="assets/js/auth.js?v=20260719v"></script>
+<script src="assets/js/ui.js?v=20260719v"></script>
+<script src="assets/js/layout.js?v=20260719v"></script>
 <script>
 const ctx = LAYOUT.render('payments');
 if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
@@ -73,21 +73,23 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
       contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
       rowsEl.innerHTML = list.map(p=>{
         const client = clients.find(c=>c.id===p.clientId);
+        const displayName = client ? client.name : (p.clientName || '—');
+        const displayPhone = client ? client.phone : (p.clientPhone || '');
         const contract = contracts.find(c=>c.id===p.contractId);
         const dueDateText = contract && contract.paymentDueDay
           ? (I18N.getLang()==='ar' ? `يوم ${contract.paymentDueDay} من كل شهر` : `day ${contract.paymentDueDay} of every month`)
           : UI.fmtDate(p.date);
-        const waHref = (client && client.phone) ? (()=>{
-          const phone = client.phone.replace(/^0/, '966').replace(/\D/g,'');
+        const waHref = displayPhone ? (()=>{
+          const phone = displayPhone.replace(/^0/, '966').replace(/\D/g,'');
           const text = encodeURIComponent(I18N.getLang()==='ar'
-            ? `مرحبًا ${client.name} | العقد رقم ${p.contractId||'—'} | نود تذكيركم بموعد سداد مستحقات عقد الصيانة | علمًا بأن تاريخ السداد المستحق هو ${dueDateText}`
-            : `Hello ${client.name} | Contract No. ${p.contractId||'—'} | This is a reminder about your maintenance contract payment | The due date is ${dueDateText}`);
+            ? `مرحبًا ${displayName} | العقد رقم ${p.contractId||'—'} | نود تذكيركم بموعد سداد مستحقات عقد الصيانة | علمًا بأن تاريخ السداد المستحق هو ${dueDateText}`
+            : `Hello ${displayName} | Contract No. ${p.contractId||'—'} | This is a reminder about your maintenance contract payment | The due date is ${dueDateText}`);
           return `https://wa.me/${phone}?text=${text}`;
         })() : null;
         return `<tr>
           <td>${UI.fmtDate(p.date)}</td>
-          <td>${client?client.name:'—'}</td>
-          <td>${p.contractId}</td>
+          <td>${displayName}</td>
+          <td>${p.contractId || p.jobOrderId || '—'}</td>
           <td><strong>${UI.fmtMoney(p.amount)}</strong></td>
           <td><span data-i18n="${methodLabel[p.method]}"></span></td>
           <td>${p.proofData ? `<button type="button" class="btn btn-sm btn-outline" data-proof="${p.id}" data-i18n="view_document"></button>` : (p.proofName ? `📎 ${p.proofName}` : '—')}</td>
@@ -113,9 +115,12 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
         if(payment && !payment.invoiceId){
           const invoice = {
             id: DB.nextSeqId('INV', 'invoices'),
-            contractId: payment.contractId, clientId: payment.clientId,
+            contractId: payment.contractId, jobOrderId: payment.jobOrderId || null, clientId: payment.clientId,
+            clientName: payment.clientName || null, clientPhone: payment.clientPhone || null,
             amount: payment.amount, date: DB.todayISO(), status: 'paid',
-            description: BILLING.invoiceDescription(payment.contractId, payment.date, payment.id),
+            description: payment.contractId
+              ? BILLING.invoiceDescription(payment.contractId, payment.date, payment.id)
+              : `${payment.description || ''} — ${I18N.t('job_payment_desc_voucher_suffix')} ${payment.id}`,
             createdAt: DB.todayISO(),
           };
           DB.insert('invoices', invoice);

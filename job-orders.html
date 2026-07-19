@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integriox — Job Orders</title>
+<link rel="icon" href="assets/images/logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B2545">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719v">
+</head>
+<body>
+<div id="app-shell"></div>
+
+<script src="assets/js/i18n.js?v=20260719v"></script>
+<script src="assets/js/lists.js?v=20260719v"></script>
+<script src="assets/js/config.js?v=20260719v"></script>
+<script src="assets/js/db.js?v=20260719v"></script>
+<script src="assets/js/billing.js?v=20260719v"></script>
+<script src="assets/js/auth.js?v=20260719v"></script>
+<script src="assets/js/ui.js?v=20260719v"></script>
+<script src="assets/js/layout.js?v=20260719v"></script>
+<script>
+const ctx = LAYOUT.render('job-orders');
+if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
+  const { contentEl } = ctx;
+
+  const execStatusBadge = { pending:'badge-warning', in_progress:'badge-info', done:'badge-success', cancelled:'badge-mute' };
+
+  function render(){
+    const jobs = DB.all('jobOrders');
+    const payments = DB.all('payments');
+    const techs = DB.all('technicians');
+
+    contentEl.innerHTML = `
+      <div class="filters-bar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="searchInput" data-i18n-ph="search">
+        </div>
+        <select id="statusFilter">
+          <option value="" data-i18n="all"></option>
+          <option value="pending" data-i18n="job_status_pending"></option>
+          <option value="in_progress" data-i18n="job_status_in_progress"></option>
+          <option value="done" data-i18n="job_status_done"></option>
+          <option value="cancelled" data-i18n="job_status_cancelled"></option>
+        </select>
+        <button type="button" class="btn btn-primary" id="addBtn" data-i18n="add_job_order"></button>
+      </div>
+      <div id="jobsSummary" class="table-summary-bar" style="border-radius:var(--radius-sm); margin-bottom:16px;"></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th><th data-i18n="job_id"></th><th data-i18n="job_client"></th><th data-i18n="job_service"></th>
+              <th data-i18n="job_duration"></th><th data-i18n="job_amount"></th><th data-i18n="job_technician"></th>
+              <th data-i18n="job_exec_status"></th><th data-i18n="job_payment_status"></th><th data-i18n="actions"></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state hidden">
+          <div style="font-size:32px; margin-bottom:8px;">🧰</div>
+          <div data-i18n="no_job_orders_yet"></div>
+        </div>
+      </div>
+    `;
+    I18N.apply(contentEl);
+    const rowsEl = contentEl.querySelector('#rows');
+
+    function draw(filter){
+      const f = (filter||'').toLowerCase();
+      const st = contentEl.querySelector('#statusFilter').value;
+      const list = jobs.filter(j=>{
+        const matchesText = !f || (j.clientName||'').toLowerCase().includes(f) || (j.clientPhone||'').includes(f) || j.id.toLowerCase().includes(f);
+        const matchesStatus = !st || j.execStatus === st;
+        return matchesText && matchesStatus;
+      }).sort((a,b)=> (b.requestDate||'').localeCompare(a.requestDate||''));
+
+      const summaryEl = contentEl.querySelector('#jobsSummary');
+      if(summaryEl){
+        const totalValue = jobs.reduce((s,j)=>s+Number(j.amount||0),0);
+        summaryEl.innerHTML = `<span><strong>${jobs.length}</strong> ${I18N.t('job_orders_count_label')}</span><span><strong>${UI.fmtMoney(totalValue)}</strong> ${I18N.t('contracts_total_value_label')}</span>`;
+      }
+
+      contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
+      rowsEl.innerHTML = list.map((j,idx)=>{
+        const tech = techs.find(t=>t.id===j.techId);
+        const payment = payments.find(p=>p.id===j.paymentId);
+        const durationLabel = j.durationUnit === 'days' ? I18N.t('job_duration_days') : I18N.t('job_duration_hours');
+        return `<tr>
+          <td class="table-row-num">${idx+1}</td>
+          <td><strong>${j.id}</strong><div class="text-muted" style="font-size:11px;">${UI.fmtDate(j.requestDate)}</div></td>
+          <td>${j.clientName||'—'}<div class="text-muted" style="font-size:11px;">${j.clientPhone||''}</div></td>
+          <td>${j.serviceName||'—'}</td>
+          <td>${j.durationValue||'—'} ${j.durationValue?durationLabel:''}</td>
+          <td><strong>${UI.fmtMoney(j.amount)}</strong></td>
+          <td>${tech?tech.name:'—'}</td>
+          <td><span class="badge ${execStatusBadge[j.execStatus]||'badge-mute'}" data-i18n="job_status_${j.execStatus||'pending'}"></span></td>
+          <td>${payment ? `<span class="badge ${payment.status==='confirmed'?'badge-success':(payment.status==='review'?'badge-warning':'badge-danger')}" data-i18n="pay_${payment.status}"></span>` : '—'}</td>
+          <td class="row-actions">
+            ${payment ? `<a class="btn btn-sm btn-outline" href="payment-template.html?id=${payment.id}" data-i18n="print_receipt_action"></a>` : ''}
+            <button type="button" class="btn btn-sm btn-outline" data-edit="${j.id}" data-i18n="edit"></button>
+            <button type="button" class="btn btn-sm btn-danger" data-del="${j.id}" data-i18n="delete"></button>
+          </td>
+        </tr>`;
+      }).join('');
+      I18N.apply(rowsEl);
+
+      rowsEl.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openForm(jobs.find(j=>j.id===b.dataset.edit))));
+      rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+        UI.confirmAction(I18N.t('confirm_delete'), ()=>{
+          const job = jobs.find(j=>j.id===b.dataset.del);
+          DB.remove('jobOrders', b.dataset.del);
+          if(job && job.paymentId) DB.remove('payments', job.paymentId);
+          DB.logActivity('تم حذف تنفيذ بالطلب ' + b.dataset.del, 'Job order deleted ' + b.dataset.del, 'other');
+          UI.toast(I18N.t('deleted_ok'), 'success'); render();
+        });
+      }));
+    }
+    contentEl.querySelector('#searchInput').addEventListener('input', e=>draw(e.target.value));
+    contentEl.querySelector('#statusFilter').addEventListener('change', ()=>draw(contentEl.querySelector('#searchInput').value));
+    contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm());
+    draw();
+  }
+
+  function openForm(job){
+    const editing = !!job;
+    const clients = DB.all('clients');
+    const techs = DB.all('technicians');
+    const overlay = UI.openModal(`
+      <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_job_order'}"></h3><button type="button" class="close-x" id="mClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="field">
+          <label data-i18n="job_client_type"></label>
+          <div class="radio-group">
+            <label class="radio-card ${!editing || !job.clientId ? 'active' : ''}"><input type="radio" name="fClientType" value="new" ${!editing || !job.clientId ? 'checked' : ''}><span data-i18n="job_client_walkin"></span></label>
+            <label class="radio-card ${editing && job.clientId ? 'active' : ''}"><input type="radio" name="fClientType" value="existing" ${editing && job.clientId ? 'checked' : ''}><span data-i18n="job_client_existing"></span></label>
+          </div>
+        </div>
+        <div class="field" id="newClientWrap" style="${editing && job.clientId ? 'display:none;' : ''}">
+          <div class="field-row">
+            <div class="field"><label data-i18n="full_name"></label><input type="text" id="fName" value="${editing?(job.clientName||''):''}"></div>
+            <div class="field"><label data-i18n="phone"></label><input type="tel" id="fPhone" value="${editing?(job.clientPhone||''):''}"></div>
+          </div>
+        </div>
+        <div class="field" id="existingClientWrap" style="${!editing || !job.clientId ? 'display:none;' : ''}">
+          <label data-i18n="job_client_existing"></label>
+          <select id="fExistingClient">${clients.map(c=>`<option value="${c.id}" ${editing && job.clientId===c.id?'selected':''}>${c.name}</option>`).join('')}</select>
+        </div>
+
+        <div class="field">
+          <label data-i18n="job_service"></label>
+          <div style="display:flex; gap:8px;">
+            <select id="fService" style="flex:1;"></select>
+            <button type="button" class="btn btn-outline btn-sm" id="addServiceBtn">+</button>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field"><label data-i18n="job_request_date"></label><input type="date" id="fDate" value="${editing?(job.requestDate||DB.todayISO()):DB.todayISO()}"></div>
+          <div class="field"><label data-i18n="job_amount"></label><input type="number" id="fAmount" min="0" value="${editing?job.amount:''}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label data-i18n="job_duration_value"></label><input type="number" id="fDurationValue" min="0" value="${editing?(job.durationValue||''):''}"></div>
+          <div class="field">
+            <label data-i18n="job_duration_unit"></label>
+            <select id="fDurationUnit">
+              <option value="hours" data-i18n="job_duration_hours" ${!editing || job.durationUnit==='hours'?'selected':''}></option>
+              <option value="days" data-i18n="job_duration_days" ${editing && job.durationUnit==='days'?'selected':''}></option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label data-i18n="job_technician"></label>
+            <select id="fTech"><option value="" data-i18n="job_no_technician"></option>${techs.map(t=>`<option value="${t.id}" ${editing && job.techId===t.id?'selected':''}>${t.name}</option>`).join('')}</select>
+          </div>
+          <div class="field">
+            <label data-i18n="job_exec_status"></label>
+            <select id="fExecStatus">
+              <option value="pending" data-i18n="job_status_pending" ${!editing || job.execStatus==='pending'?'selected':''}></option>
+              <option value="in_progress" data-i18n="job_status_in_progress" ${editing && job.execStatus==='in_progress'?'selected':''}></option>
+              <option value="done" data-i18n="job_status_done" ${editing && job.execStatus==='done'?'selected':''}></option>
+              <option value="cancelled" data-i18n="job_status_cancelled" ${editing && job.execStatus==='cancelled'?'selected':''}></option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label data-i18n="job_location"></label><input type="text" id="fLocation" value="${editing?(job.location||''):''}"></div>
+        <div class="field"><label data-i18n="job_notes"></label><textarea id="fNotes" style="min-height:80px;">${editing?(job.notes||''):''}</textarea></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
+        <button type="button" class="btn btn-primary" id="mSave" data-i18n="save"></button>
+      </div>
+    `);
+    I18N.apply(overlay);
+
+    const serviceSelect = overlay.querySelector('#fService');
+    function drawServices(selectedId){
+      const services = DB.getSettings().serviceTypes || [];
+      serviceSelect.innerHTML = services.map(s=>`
+        <option value="${s.id}" data-name="${I18N.getLang()==='ar'?s.nameAr:s.nameEn}" ${(editing && job.serviceId===s.id) || selectedId===s.id ?'selected':''}>
+          ${I18N.getLang()==='ar'?s.nameAr:s.nameEn}
+        </option>`).join('');
+    }
+    drawServices();
+    overlay.querySelector('#addServiceBtn').addEventListener('click', ()=>{
+      const nameAr = (window.prompt(I18N.t('job_new_service_prompt'))||'').trim();
+      if(!nameAr) return;
+      const services = DB.getSettings().serviceTypes || [];
+      const newService = { id: 'svc_' + Math.random().toString(36).slice(2,8), nameAr, nameEn: nameAr, defaultPrice: 0 };
+      DB.saveSettings({ serviceTypes: services.concat([newService]) });
+      DB.logActivity('تمت إضافة نوع خدمة جديد: ' + nameAr, 'New service type added: ' + nameAr, 'settings');
+      drawServices(newService.id);
+    });
+
+    overlay.querySelectorAll('.radio-card').forEach(card=>{
+      card.addEventListener('click', ()=>{
+        const group = card.closest('.radio-group');
+        group.querySelectorAll('.radio-card').forEach(c=>c.classList.remove('active'));
+        card.classList.add('active');
+        const input = card.querySelector('input');
+        input.checked = true;
+        if(input.name === 'fClientType'){
+          overlay.querySelector('#newClientWrap').style.display = input.value==='new' ? '' : 'none';
+          overlay.querySelector('#existingClientWrap').style.display = input.value==='existing' ? '' : 'none';
+        }
+      });
+    });
+
+    overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
+    overlay.querySelector('#mSave').addEventListener('click', ()=>{
+      const isExisting = overlay.querySelector('input[name=fClientType]:checked').value === 'existing';
+      let clientId = null, clientName = '', clientPhone = '';
+      if(isExisting){
+        const c = clients.find(x=>x.id===overlay.querySelector('#fExistingClient').value);
+        if(c){ clientId = c.id; clientName = c.name; clientPhone = c.phone; }
+      } else {
+        clientName = overlay.querySelector('#fName').value.trim();
+        clientPhone = overlay.querySelector('#fPhone').value.trim();
+      }
+      const amount = Number(overlay.querySelector('#fAmount').value || 0);
+      if(!clientName || !amount){ UI.toast(I18N.t('err_required'), 'error'); return; }
+      const serviceOpt = serviceSelect.selectedOptions[0];
+      const requestDate = overlay.querySelector('#fDate').value;
+
+      const data = {
+        clientId, clientName, clientPhone,
+        serviceId: serviceSelect.value, serviceName: serviceOpt ? serviceOpt.dataset.name : '',
+        requestDate, amount,
+        durationValue: Number(overlay.querySelector('#fDurationValue').value || 0),
+        durationUnit: overlay.querySelector('#fDurationUnit').value,
+        techId: overlay.querySelector('#fTech').value || null,
+        execStatus: overlay.querySelector('#fExecStatus').value,
+        location: overlay.querySelector('#fLocation').value.trim(),
+        notes: overlay.querySelector('#fNotes').value.trim(),
+      };
+
+      if(editing){
+        DB.update('jobOrders', job.id, data);
+        // keep the linked pending payment's amount/description in sync if it hasn't been confirmed yet
+        if(job.paymentId){
+          const payment = DB.get('payments', job.paymentId);
+          if(payment && payment.status === 'review'){
+            DB.update('payments', payment.id, {
+              amount, clientId, clientName, clientPhone,
+              description: I18N.t('job_payment_desc_prefix') + ' ' + data.serviceName + ' — ' + clientName,
+            });
+          }
+        }
+        DB.logActivity('تم تعديل تنفيذ بالطلب ' + job.id, 'Job order updated ' + job.id, 'other');
+      } else {
+        data.id = DB.nextSeqId('JOB', 'jobOrders');
+        data.createdAt = DB.todayISO();
+        const payment = {
+          id: DB.nextSeqId('PAY', 'payments'),
+          contractId: null, jobOrderId: data.id,
+          clientId, clientName, clientPhone,
+          amount, method: 'cash', date: requestDate, status: 'review',
+          description: I18N.t('job_payment_desc_prefix') + ' ' + data.serviceName + ' — ' + clientName,
+        };
+        DB.insert('payments', payment);
+        data.paymentId = payment.id;
+        DB.insert('jobOrders', data);
+        DB.logActivity('تم تسجيل تنفيذ بالطلب جديد ' + data.id, 'New job order recorded ' + data.id, 'other');
+      }
+      UI.closeModal(); UI.toast(I18N.t('saved_ok'), 'success'); render();
+    });
+  }
+
+  document.addEventListener('lang-changed', render);
+  render();
+}
+</script>
+</body>
+</html>
