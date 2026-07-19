@@ -15,6 +15,18 @@ const DB = (function(){
   let cache = null; // in-memory cache of the parsed DB, avoids re-parsing localStorage on every call
 
   function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+  // Generates PREFIX-YYYY-NNN ids (e.g. PAY-2026-001, INV-2026-001) —
+  // sequential per year, per collection.
+  function nextSeqId(prefix, collection){
+    const year = new Date().getFullYear();
+    const yearPrefix = `${prefix}-${year}-`;
+    const maxSeq = all(collection).reduce((max, r)=>{
+      if(typeof r.id !== 'string' || !r.id.startsWith(yearPrefix)) return max;
+      const n = parseInt(r.id.slice(yearPrefix.length), 10);
+      return isNaN(n) ? max : Math.max(max, n);
+    }, 0);
+    return yearPrefix + String(maxSeq + 1).padStart(3, '0');
+  }
   function todayISO(){ return new Date().toISOString().slice(0,10); }
 
   // Config shipped in assets/js/config.js — the site-wide default connection
@@ -353,7 +365,7 @@ const DB = (function(){
   }
 
   return {
-    uid, todayISO, load, save, resetDemo,
+    uid, nextSeqId, todayISO, load, save, resetDemo,
     all, get, insert, update, remove,
     getSettings, saveSettings, logActivity,
     encodeSecret, decodeSecret, syncFull, syncNow, pullFromSheet, clearAllData, shippedConfig,

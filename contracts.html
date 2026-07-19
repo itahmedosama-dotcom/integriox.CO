@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719n">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719o">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719n"></script>
-<script src="assets/js/lists.js?v=20260719n"></script>
-<script src="assets/js/config.js?v=20260719n"></script>
-<script src="assets/js/db.js?v=20260719n"></script>
-<script src="assets/js/billing.js?v=20260719n"></script>
-<script src="assets/js/auth.js?v=20260719n"></script>
-<script src="assets/js/ui.js?v=20260719n"></script>
-<script src="assets/js/layout.js?v=20260719n"></script>
+<script src="assets/js/i18n.js?v=20260719o"></script>
+<script src="assets/js/lists.js?v=20260719o"></script>
+<script src="assets/js/config.js?v=20260719o"></script>
+<script src="assets/js/db.js?v=20260719o"></script>
+<script src="assets/js/billing.js?v=20260719o"></script>
+<script src="assets/js/auth.js?v=20260719o"></script>
+<script src="assets/js/ui.js?v=20260719o"></script>
+<script src="assets/js/layout.js?v=20260719o"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -325,9 +325,10 @@ if(ctx){
         // invoice (see payments.html). Nothing reaches Invoices on its own.
         if(data.paymentTerms === 'upfront' && data.amount > 0){
           const payment = {
-            id: 'PAY-' + (5000 + DB.all('payments').length + 1),
+            id: DB.nextSeqId('PAY', 'payments'),
             contractId: data.id, clientId: data.clientId,
             amount: data.amount, method: 'bank', date: DB.todayISO(), status: 'review',
+            description: BILLING.paymentDescription(data.id, DB.todayISO()),
           };
           DB.insert('payments', payment);
           DB.logActivity('تم إنشاء دفعة بانتظار التأكيد للعقد ' + data.id, 'Pending payment created for contract ' + data.id, 'payment');
@@ -339,9 +340,10 @@ if(ctx){
           const periodKey = cycle==='yearly' ? String(new Date().getFullYear()) : DB.todayISO().slice(0,7);
           if(firstAmount > 0){
             const payment = {
-              id: 'PAY-' + (5000 + DB.all('payments').length + 1),
+              id: DB.nextSeqId('PAY', 'payments'),
               contractId: data.id, clientId: data.clientId,
               amount: firstAmount, method: 'bank', date: DB.todayISO(), status: 'review',
+              description: BILLING.paymentDescription(data.id, DB.todayISO()),
             };
             DB.insert('payments', payment);
             DB.logActivity('تم إنشاء أول دفعة دورية بانتظار التأكيد للعقد ' + data.id, 'First recurring pending payment created for contract ' + data.id, 'payment');

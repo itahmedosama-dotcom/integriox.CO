@@ -69,9 +69,10 @@ const BILLING = (function(){
       if(amount <= 0) return;
 
       const payment = {
-        id: 'PAY-' + (5000 + DB.all('payments').length + 1),
+        id: DB.nextSeqId('PAY', 'payments'),
         contractId: c.id, clientId: c.clientId,
         amount, method: 'bank', date: DB.todayISO(), status: 'review',
+        description: paymentDescription(c.id, DB.todayISO()),
       };
       DB.insert('payments', payment);
       DB.update('contracts', c.id, { lastAutoInvoiceMonth: periodKey });
@@ -92,5 +93,26 @@ const BILLING = (function(){
     }).sort((a,b)=> b.daysLate - a.daysLate);
   }
 
-  return { contractTaxes, invoiceBreakdown, runAutoInvoices, overdueInvoices };
+  const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function monthYearLabel(dateStr){
+    const d = dateStr ? new Date(dateStr) : new Date();
+    const name = I18N.getLang()==='ar' ? MONTHS_AR[d.getMonth()] : MONTHS_EN[d.getMonth()];
+    return `${name} ${d.getFullYear()}`;
+  }
+  // "سداد قيمة الصيانة عن عقد CT-1001 عن شهر يوليو 2026"
+  function paymentDescription(contractId, dateStr){
+    return I18N.getLang()==='ar'
+      ? `سداد قيمة الصيانة عن عقد ${contractId || '—'} عن شهر ${monthYearLabel(dateStr)}`
+      : `Maintenance payment for contract ${contractId || '—'} for ${monthYearLabel(dateStr)}`;
+  }
+  // Same, plus the payment voucher (سند) number — used on the auto-issued invoice.
+  function invoiceDescription(contractId, dateStr, paymentId){
+    const base = paymentDescription(contractId, dateStr);
+    return I18N.getLang()==='ar'
+      ? `${base} — سند رقم ${paymentId}`
+      : `${base} — voucher No. ${paymentId}`;
+  }
+
+  return { contractTaxes, invoiceBreakdown, runAutoInvoices, overdueInvoices, paymentDescription, invoiceDescription, monthYearLabel };
 })();
