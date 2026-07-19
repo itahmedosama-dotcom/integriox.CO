@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191j">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191k">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191j"></script>
-<script src="assets/js/lists.js?v=202607191j"></script>
-<script src="assets/js/config.js?v=202607191j"></script>
-<script src="assets/js/db.js?v=202607191j"></script>
-<script src="assets/js/billing.js?v=202607191j"></script>
-<script src="assets/js/auth.js?v=202607191j"></script>
-<script src="assets/js/ui.js?v=202607191j"></script>
-<script src="assets/js/layout.js?v=202607191j"></script>
+<script src="assets/js/i18n.js?v=202607191k"></script>
+<script src="assets/js/lists.js?v=202607191k"></script>
+<script src="assets/js/config.js?v=202607191k"></script>
+<script src="assets/js/db.js?v=202607191k"></script>
+<script src="assets/js/billing.js?v=202607191k"></script>
+<script src="assets/js/auth.js?v=202607191k"></script>
+<script src="assets/js/ui.js?v=202607191k"></script>
+<script src="assets/js/layout.js?v=202607191k"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -84,10 +84,14 @@ if(ctx){
               <img src="assets/images/logo.png" style="width:44px;height:44px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">
               <div style="font-size:13.5px; line-height:2;">
                 ${settings.companyName}<br>${settings.companyPhone}<br>${settings.companyEmail}
-                ${settings.companyCr ? `<br>${I18N.t('company_cr')}: ${settings.companyCr}` : ''}
-                ${settings.companyTaxNumber ? `<br>${I18N.t('company_tax_number')}: ${settings.companyTaxNumber}` : ''}
-                ${settings.bankName ? `<br>${I18N.t('company_bank_name')}: ${settings.bankName}` : ''}
-                ${settings.iban ? `<br>${I18N.t('company_iban')}: ${settings.iban}` : ''}
+                ${(settings.companyCr || settings.companyTaxNumber) ? `<br>${[
+                  settings.companyCr ? `${I18N.t('company_cr')}: ${settings.companyCr}` : '',
+                  settings.companyTaxNumber ? `${I18N.t('company_tax_number')}: ${settings.companyTaxNumber}` : '',
+                ].filter(Boolean).join('   ')}` : ''}
+                ${(settings.bankName || settings.iban) ? `<br>${[
+                  settings.bankName ? `${I18N.t('company_bank_name')}: ${settings.bankName}` : '',
+                  settings.iban ? `${I18N.t('company_iban')}: ${settings.iban}` : '',
+                ].filter(Boolean).join('   ')}` : ''}
               </div>
             </div>
           </div>
@@ -134,14 +138,10 @@ if(ctx){
         <h4 data-i18n="terms_conditions" style="margin:0 0 10px;"></h4>
         <div class="terms-box" style="max-height:none; margin-bottom:26px;">${settings.terms}</div>
 
-        ${settings.companyStamp ? `
-        <div style="display:flex; justify-content:center; margin-bottom:18px;">
-          <img src="${settings.companyStamp}" style="width:100px; height:100px; object-fit:contain;" alt="stamp">
-        </div>` : ''}
-
         <div class="grid grid-2">
           <div>
             <h4 data-i18n="signature" style="margin:0 0 10px;"></h4>
+            ${settings.companyStamp ? `<img src="${settings.companyStamp}" style="width:90px; height:90px; object-fit:contain; margin-bottom:6px;" alt="stamp">` : ''}
             <div class="text-muted" style="font-size:12px; margin-bottom:8px;">${settings.companyName} — <span data-i18n="signature"></span></div>
             ${settings.companySignature
               ? `<img src="${settings.companySignature}" style="max-height:70px; margin-bottom:4px;">`
