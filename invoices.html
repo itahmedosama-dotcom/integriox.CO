@@ -9,25 +9,26 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191b">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191c">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191b"></script>
-<script src="assets/js/lists.js?v=202607191b"></script>
-<script src="assets/js/config.js?v=202607191b"></script>
-<script src="assets/js/db.js?v=202607191b"></script>
-<script src="assets/js/billing.js?v=202607191b"></script>
-<script src="assets/js/auth.js?v=202607191b"></script>
-<script src="assets/js/ui.js?v=202607191b"></script>
-<script src="assets/js/layout.js?v=202607191b"></script>
+<script src="assets/js/i18n.js?v=202607191c"></script>
+<script src="assets/js/lists.js?v=202607191c"></script>
+<script src="assets/js/config.js?v=202607191c"></script>
+<script src="assets/js/db.js?v=202607191c"></script>
+<script src="assets/js/billing.js?v=202607191c"></script>
+<script src="assets/js/auth.js?v=202607191c"></script>
+<script src="assets/js/ui.js?v=202607191c"></script>
+<script src="assets/js/layout.js?v=202607191c"></script>
 <script>
 const ctx = LAYOUT.render('invoices');
 if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
   const { user, contentEl } = ctx;
   const isAdmin = user.role === 'admin';
   const statusBadge = { paid:'badge-success', unpaid:'badge-warning' };
+  const execStatusBadge = { pending:'badge-warning', in_progress:'badge-info', done:'badge-success', cancelled:'badge-mute' };
 
   function render(){
     if(isAdmin) BILLING.runAutoInvoices();
@@ -37,6 +38,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
     if(qClientId) invoices = invoices.filter(i=>i.clientId===qClientId);
     const clients = DB.all('clients');
     const contracts = DB.all('contracts');
+    const jobOrders = DB.all('jobOrders');
 
     contentEl.innerHTML = `
       <div class="filters-bar">
@@ -53,7 +55,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
           <table>
             <thead><tr>
               <th data-i18n="invoice_id"></th><th data-i18n="invoice_client"></th><th data-i18n="invoice_contract"></th>
-              <th data-i18n="invoice_amount"></th><th data-i18n="invoice_date"></th><th data-i18n="invoice_status"></th><th data-i18n="actions"></th>
+              <th data-i18n="invoice_amount"></th><th data-i18n="invoice_date"></th><th data-i18n="invoice_status"></th><th data-i18n="job_exec_status"></th><th data-i18n="actions"></th>
             </tr></thead>
             <tbody id="rows"></tbody>
           </table>
@@ -72,6 +74,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
         const client = clients.find(c=>c.id===i.clientId);
         const displayName = client ? client.name : (i.clientName || '—');
         const linkedContract = i.contractId ? contracts.find(c=>c.id===i.contractId) : null;
+        const jobOrder = i.jobOrderId ? jobOrders.find(j=>j.id===i.jobOrderId) : null;
         const overdue = i.status==='unpaid' && i.date && i.date < DB.todayISO();
         return `<tr ${overdue ? 'style="background:var(--warning-bg);"' : ''}>
           <td><strong>${i.id}</strong></td>
@@ -83,6 +86,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
             <span class="badge ${statusBadge[i.status]}" data-i18n="inv_${i.status}"></span>
             ${overdue ? `<span class="badge" style="background:#F5C244; color:#5a3d00;" data-i18n="overdue_badge"></span>` : ''}
           </td>
+          <td>${jobOrder ? `<span class="badge ${execStatusBadge[jobOrder.execStatus]||'badge-mute'}" data-i18n="job_status_${jobOrder.execStatus||'pending'}"></span>` : '—'}</td>
           <td class="row-actions">
             <a class="btn btn-sm btn-outline" href="invoice-template.html?id=${i.id}" data-i18n="view_invoice"></a>
             ${isAdmin ? `<button type="button" class="btn btn-sm btn-outline" data-edit="${i.id}" data-i18n="edit"></button>` : ''}
