@@ -9,27 +9,29 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719y">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191b">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719y"></script>
-<script src="assets/js/lists.js?v=20260719y"></script>
-<script src="assets/js/config.js?v=20260719y"></script>
-<script src="assets/js/db.js?v=20260719y"></script>
-<script src="assets/js/billing.js?v=20260719y"></script>
-<script src="assets/js/auth.js?v=20260719y"></script>
-<script src="assets/js/ui.js?v=20260719y"></script>
-<script src="assets/js/layout.js?v=20260719y"></script>
+<script src="assets/js/i18n.js?v=202607191b"></script>
+<script src="assets/js/lists.js?v=202607191b"></script>
+<script src="assets/js/config.js?v=202607191b"></script>
+<script src="assets/js/db.js?v=202607191b"></script>
+<script src="assets/js/billing.js?v=202607191b"></script>
+<script src="assets/js/auth.js?v=202607191b"></script>
+<script src="assets/js/ui.js?v=202607191b"></script>
+<script src="assets/js/layout.js?v=202607191b"></script>
 <script>
 const ctx = LAYOUT.render('job-orders');
-if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
-  const { contentEl } = ctx;
+if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
+  const { user, contentEl } = ctx;
+  const isAdmin = user.role === 'admin';
 
   const execStatusBadge = { pending:'badge-warning', in_progress:'badge-info', done:'badge-success', cancelled:'badge-mute' };
 
   function render(){
+    if(!isAdmin) return renderClientView();
     const jobs = DB.all('jobOrders');
     const payments = DB.all('payments');
     const techs = DB.all('technicians');
@@ -92,8 +94,9 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
         const durationLabel = j.durationUnit === 'days' ? I18N.t('job_duration_days') : I18N.t('job_duration_hours');
         const waHref = j.clientPhone ? (()=>{
           const phone = j.clientPhone.replace(/^0/, '966').replace(/\D/g,'');
+          const idSafe = UI.ltrToken(j.id);
           const text = encodeURIComponent(I18N.getLang()==='ar'
-            ? `مرحبًا ${j.clientName} | طلب حل مشكلة برقم ${j.id} | نود تذكيركم بموعد سداد مستحقات الطلب لتنفيذ الخدمة | علمًا بأن تاريخ السداد المستحق هو ${UI.fmtDate(j.requestDate)}`
+            ? `\u200Fمرحبًا ${j.clientName} | طلب حل مشكلة برقم ${idSafe} | نود تذكيركم بموعد سداد مستحقات الطلب لتنفيذ الخدمة | علمًا بأن تاريخ السداد المستحق هو ${UI.fmtDate(j.requestDate)}`
             : `Hello ${j.clientName} | Service request No. ${j.id} | This is a reminder about the payment due for this service request | The due date is ${UI.fmtDate(j.requestDate)}`);
           return `https://wa.me/${phone}?text=${text}`;
         })() : null;
@@ -103,7 +106,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
           <td>${j.clientName||'—'}<div class="text-muted" style="font-size:11px;">${j.clientPhone||''}</div></td>
           <td>${j.serviceName||'—'}</td>
           <td>${j.durationValue||'—'} ${j.durationValue?durationLabel:''}</td>
-          <td><strong>${UI.fmtMoney(j.amount)}</strong></td>
+          <td><strong>${j.amount ? UI.fmtMoney(j.amount) : '—'}</strong></td>
           <td>${tech?tech.name:'—'}</td>
           <td><span class="badge ${execStatusBadge[j.execStatus]||'badge-mute'}" data-i18n="job_status_${j.execStatus||'pending'}"></span></td>
           <td>${payment ? `<span class="badge ${payment.status==='confirmed'?'badge-success':(payment.status==='review'?'badge-warning':'badge-danger')}" data-i18n="pay_${payment.status}"></span>` : '—'}</td>
@@ -139,13 +142,59 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
     draw();
   }
 
+  function renderClientView(){
+    const myJobs = DB.all('jobOrders').filter(j=>j.clientId===user.clientId).sort((a,b)=>(b.requestDate||'').localeCompare(a.requestDate||''));
+    const payments = DB.all('payments');
+
+    contentEl.innerHTML = `
+      <div class="filters-bar">
+        <button type="button" class="btn btn-primary" id="addBtn" data-i18n="add_job_order"></button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th><th data-i18n="job_id"></th><th data-i18n="job_service"></th>
+              <th data-i18n="job_exec_status"></th><th data-i18n="job_payment_status"></th><th data-i18n="actions"></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty-state ${myJobs.length?'hidden':''}">
+          <div style="font-size:32px; margin-bottom:8px;">🧰</div>
+          <div data-i18n="no_job_orders_yet"></div>
+        </div>
+      </div>
+    `;
+    I18N.apply(contentEl);
+    const rowsEl = contentEl.querySelector('#rows');
+    rowsEl.innerHTML = myJobs.map((j,idx)=>{
+      const payment = payments.find(p=>p.id===j.paymentId);
+      return `<tr>
+        <td class="table-row-num">${idx+1}</td>
+        <td><strong>${j.id}</strong><div class="text-muted" style="font-size:11px;">${UI.fmtDate(j.requestDate)}</div></td>
+        <td>${j.serviceName||'—'}</td>
+        <td><span class="badge ${execStatusBadge[j.execStatus]||'badge-mute'}" data-i18n="job_status_${j.execStatus||'pending'}"></span></td>
+        <td>${payment ? `<span class="badge ${payment.status==='confirmed'?'badge-success':(payment.status==='review'?'badge-warning':'badge-danger')}" data-i18n="pay_${payment.status}"></span>` : '—'}</td>
+        <td class="row-actions">
+          ${payment ? `<a class="btn btn-sm btn-outline" href="payment-template.html?id=${payment.id}" data-i18n="print_receipt_action"></a>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+    I18N.apply(rowsEl);
+    contentEl.querySelector('#addBtn').addEventListener('click', ()=>openForm());
+  }
+
   function openForm(job){
     const editing = !!job;
     const clients = DB.all('clients');
     const techs = DB.all('technicians');
+    const myClient = !isAdmin ? DB.get('clients', user.clientId) : null;
+
     const overlay = UI.openModal(`
       <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_job_order'}"></h3><button type="button" class="close-x" id="mClose">&times;</button></div>
       <div class="modal-body">
+        ${isAdmin ? `
         <div class="field">
           <label data-i18n="job_pick_existing_client"></label>
           <select id="fExistingClient">
@@ -166,19 +215,28 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
           <div class="field"><label data-i18n="client_cr"></label><input type="text" id="fClientCr" value="${editing && job.clientId ? ((clients.find(c=>c.id===job.clientId)||{}).crNumber||'') : ''}"></div>
           <div class="field"><label data-i18n="client_tax_number"></label><input type="text" id="fClientTax" value="${editing && job.clientId ? ((clients.find(c=>c.id===job.clientId)||{}).taxNumber||'') : ''}"></div>
         </div>
+        ` : `
+        <div class="field">
+          <label data-i18n="job_client"></label>
+          <div style="font-size:13.5px; font-weight:700;">${myClient?myClient.name:user.name}</div>
+          <div class="text-muted" style="font-size:12px;">${myClient?myClient.phone:''}</div>
+        </div>
+        `}
 
         <div class="field">
           <label data-i18n="job_service"></label>
           <div style="display:flex; gap:8px;">
             <select id="fService" style="flex:1;"></select>
-            <button type="button" class="btn btn-outline btn-sm" id="addServiceBtn">+</button>
+            ${isAdmin ? `<button type="button" class="btn btn-outline btn-sm" id="addServiceBtn">+</button>` : ''}
           </div>
+          ${!isAdmin ? `<p class="hint" data-i18n="job_service_client_hint" style="margin-top:4px;"></p>` : ''}
         </div>
 
         <div class="field-row">
           <div class="field"><label data-i18n="job_request_date"></label><input type="date" id="fDate" value="${editing?(job.requestDate||DB.todayISO()):DB.todayISO()}"></div>
-          <div class="field"><label data-i18n="job_amount"></label><input type="number" id="fAmount" min="0" value="${editing?job.amount:''}"></div>
+          ${isAdmin ? `<div class="field"><label data-i18n="job_amount"></label><input type="number" id="fAmount" min="0" value="${editing?job.amount:''}"></div>` : '<div class="field"></div>'}
         </div>
+        ${isAdmin ? `
         <div class="field-row">
           <div class="field"><label data-i18n="job_duration_value"></label><input type="number" id="fDurationValue" min="0" value="${editing?(job.durationValue||''):''}"></div>
           <div class="field">
@@ -204,6 +262,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
             </select>
           </div>
         </div>
+        ` : ''}
         <div class="field"><label data-i18n="job_location"></label><input type="text" id="fLocation" value="${editing?(job.location||''):''}"></div>
         <div class="field"><label data-i18n="job_notes"></label><textarea id="fNotes" style="min-height:80px;">${editing?(job.notes||''):''}</textarea></div>
       </div>
@@ -223,70 +282,83 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
         </option>`).join('');
     }
     drawServices();
-    overlay.querySelector('#addServiceBtn').addEventListener('click', ()=>{
-      const nameAr = (window.prompt(I18N.t('job_new_service_prompt'))||'').trim();
-      if(!nameAr) return;
-      const services = DB.getSettings().serviceTypes || [];
-      const newService = { id: 'svc_' + Math.random().toString(36).slice(2,8), nameAr, nameEn: nameAr, defaultPrice: 0 };
-      DB.saveSettings({ serviceTypes: services.concat([newService]) });
-      DB.logActivity('تمت إضافة نوع خدمة جديد: ' + nameAr, 'New service type added: ' + nameAr, 'settings');
-      drawServices(newService.id);
-    });
-
-    overlay.querySelector('#fExistingClient').addEventListener('change', (e)=>{
-      const c = clients.find(x=>x.id===e.target.value);
-      if(c){
-        overlay.querySelector('#fName').value = c.name || '';
-        overlay.querySelector('#fPhone').value = c.phone || '';
-        overlay.querySelector('#fClientEmail').value = c.email || '';
-        overlay.querySelector('#fClientCr').value = c.crNumber || '';
-        overlay.querySelector('#fClientTax').value = c.taxNumber || '';
-      }
-    });
+    if(isAdmin){
+      overlay.querySelector('#addServiceBtn').addEventListener('click', ()=>{
+        const nameAr = (window.prompt(I18N.t('job_new_service_prompt'))||'').trim();
+        if(!nameAr) return;
+        const services = DB.getSettings().serviceTypes || [];
+        const newService = { id: 'svc_' + Math.random().toString(36).slice(2,8), nameAr, nameEn: nameAr, defaultPrice: 0 };
+        DB.saveSettings({ serviceTypes: services.concat([newService]) });
+        DB.logActivity('تمت إضافة نوع خدمة جديد: ' + nameAr, 'New service type added: ' + nameAr, 'settings');
+        drawServices(newService.id);
+      });
+      overlay.querySelector('#fExistingClient').addEventListener('change', (e)=>{
+        const c = clients.find(x=>x.id===e.target.value);
+        if(c){
+          overlay.querySelector('#fName').value = c.name || '';
+          overlay.querySelector('#fPhone').value = c.phone || '';
+          overlay.querySelector('#fClientEmail').value = c.email || '';
+          overlay.querySelector('#fClientCr').value = c.crNumber || '';
+          overlay.querySelector('#fClientTax').value = c.taxNumber || '';
+        }
+      });
+    }
 
     overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mSave').addEventListener('click', ()=>{
-      const clientName = overlay.querySelector('#fName').value.trim();
-      const clientPhone = overlay.querySelector('#fPhone').value.trim();
-      const clientEmail = overlay.querySelector('#fClientEmail').value.trim();
-      const clientCr = overlay.querySelector('#fClientCr').value.trim();
-      const clientTax = overlay.querySelector('#fClientTax').value.trim();
-      const amount = Number(overlay.querySelector('#fAmount').value || 0);
-      if(!clientName || !clientPhone || !amount){ UI.toast(I18N.t('err_required'), 'error'); return; }
+      let clientId, clientName, clientPhone;
 
-      // Every job-order client is always a real, permanent client record —
-      // reuse the one explicitly picked, or one matching this phone
-      // number, or create a brand new one.
-      let clientId = overlay.querySelector('#fExistingClient').value || null;
-      if(!clientId){
-        const existingByPhone = DB.all('clients').find(c=>c.phone && c.phone===clientPhone);
-        if(existingByPhone) clientId = existingByPhone.id;
-      }
-      const clientPatch = {
-        name: clientName, nameAr: clientName, phone: clientPhone,
-        email: clientEmail, crNumber: clientCr, taxNumber: clientTax,
-      };
-      if(clientId){
-        DB.update('clients', clientId, clientPatch);
+      if(isAdmin){
+        clientName = overlay.querySelector('#fName').value.trim();
+        clientPhone = overlay.querySelector('#fPhone').value.trim();
+        const clientEmail = overlay.querySelector('#fClientEmail').value.trim();
+        const clientCr = overlay.querySelector('#fClientCr').value.trim();
+        const clientTax = overlay.querySelector('#fClientTax').value.trim();
+        if(!clientName || !clientPhone){ UI.toast(I18N.t('err_required'), 'error'); return; }
+
+        // Every job-order client is always a real, permanent client
+        // record — reuse the one explicitly picked, or one matching this
+        // phone number, or create a brand new one.
+        clientId = overlay.querySelector('#fExistingClient').value || null;
+        if(!clientId){
+          const existingByPhone = DB.all('clients').find(c=>c.phone && c.phone===clientPhone);
+          if(existingByPhone) clientId = existingByPhone.id;
+        }
+        const clientPatch = {
+          name: clientName, nameAr: clientName, phone: clientPhone,
+          email: clientEmail, crNumber: clientCr, taxNumber: clientTax,
+        };
+        if(clientId){
+          DB.update('clients', clientId, clientPatch);
+        } else {
+          const newClient = DB.insert('clients', Object.assign({}, clientPatch, { country:'', address:'', createdAt: DB.todayISO() }));
+          clientId = newClient.id;
+          DB.logActivity('تم تسجيل عميل جديد من تنفيذ بالطلب: ' + clientName, 'New client registered from a job order: ' + clientName, 'client');
+        }
       } else {
-        const newClient = DB.insert('clients', Object.assign({}, clientPatch, { country:'', address:'', createdAt: DB.todayISO() }));
-        clientId = newClient.id;
-        DB.logActivity('تم تسجيل عميل جديد من تنفيذ بالطلب: ' + clientName, 'New client registered from a job order: ' + clientName, 'client');
+        // Client submitting their own request — always themselves, never
+        // anyone else's account.
+        clientId = user.clientId;
+        clientName = myClient ? myClient.name : user.name;
+        clientPhone = myClient ? myClient.phone : '';
       }
       DB.markClientType(clientId, 'on_demand');
 
       const serviceOpt = serviceSelect.selectedOptions[0];
+      if(!serviceOpt){ UI.toast(I18N.t('err_required'), 'error'); return; }
       const requestDate = overlay.querySelector('#fDate').value;
+      const amount = isAdmin ? Number(overlay.querySelector('#fAmount').value || 0) : (editing ? job.amount : 0);
+      if(isAdmin && !amount){ UI.toast(I18N.t('err_required'), 'error'); return; }
 
       const data = {
         clientId, clientName, clientPhone,
         serviceId: serviceSelect.value, serviceName: serviceOpt ? serviceOpt.dataset.name : '',
         requestDate, amount,
-        durationValue: Number(overlay.querySelector('#fDurationValue').value || 0),
-        durationUnit: overlay.querySelector('#fDurationUnit').value,
-        techId: overlay.querySelector('#fTech').value || null,
-        execStatus: overlay.querySelector('#fExecStatus').value,
+        durationValue: isAdmin ? Number(overlay.querySelector('#fDurationValue').value || 0) : (editing ? job.durationValue : 0),
+        durationUnit: isAdmin ? overlay.querySelector('#fDurationUnit').value : (editing ? job.durationUnit : 'hours'),
+        techId: isAdmin ? (overlay.querySelector('#fTech').value || null) : (editing ? job.techId : null),
+        execStatus: isAdmin ? overlay.querySelector('#fExecStatus').value : (editing ? job.execStatus : 'pending'),
         location: overlay.querySelector('#fLocation').value.trim(),
         notes: overlay.querySelector('#fNotes').value.trim(),
       };
@@ -302,22 +374,46 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
               description: I18N.t('job_payment_desc_prefix') + ' ' + data.serviceName + ' — ' + clientName,
             });
           }
+        } else if(amount > 0){
+          // an admin has just set a price for a request that came in
+          // without one (e.g. a client's own submission) — send it to
+          // Payments for confirmation now.
+          const payment = {
+            id: DB.nextSeqId('PAY', 'payments'),
+            contractId: null, jobOrderId: job.id,
+            clientId, clientName, clientPhone,
+            amount, method: 'cash', date: DB.todayISO(), status: 'review',
+            description: I18N.t('job_payment_desc_prefix') + ' ' + data.serviceName + ' — ' + clientName,
+          };
+          DB.insert('payments', payment);
+          DB.update('jobOrders', job.id, { paymentId: payment.id });
+          DB.logActivity('تم إنشاء دفعة بانتظار التأكيد لتنفيذ بالطلب ' + job.id, 'Pending payment created for job order ' + job.id, 'payment');
         }
         DB.logActivity('تم تعديل تنفيذ بالطلب ' + job.id, 'Job order updated ' + job.id, 'other');
       } else {
         data.id = DB.nextSeqId('JOB', 'jobOrders');
         data.createdAt = DB.todayISO();
-        const payment = {
-          id: DB.nextSeqId('PAY', 'payments'),
-          contractId: null, jobOrderId: data.id,
-          clientId, clientName, clientPhone,
-          amount, method: 'cash', date: requestDate, status: 'review',
-          description: I18N.t('job_payment_desc_prefix') + ' ' + data.serviceName + ' — ' + clientName,
-        };
-        DB.insert('payments', payment);
-        data.paymentId = payment.id;
+        // Only send it to Payments if a price is already known (admin
+        // entry). A client's own submission has no price yet — an admin
+        // sets one later when editing it, which is what creates the
+        // payment (see above).
+        if(amount > 0){
+          const payment = {
+            id: DB.nextSeqId('PAY', 'payments'),
+            contractId: null, jobOrderId: data.id,
+            clientId, clientName, clientPhone,
+            amount, method: 'cash', date: requestDate, status: 'review',
+            description: I18N.t('job_payment_desc_prefix') + ' ' + data.serviceName + ' — ' + clientName,
+          };
+          DB.insert('payments', payment);
+          data.paymentId = payment.id;
+        }
         DB.insert('jobOrders', data);
-        DB.logActivity('تم تسجيل تنفيذ بالطلب جديد ' + data.id, 'New job order recorded ' + data.id, 'other');
+        if(isAdmin){
+          DB.logActivity('تم تسجيل تنفيذ بالطلب جديد ' + data.id, 'New job order recorded ' + data.id, 'other');
+        } else {
+          DB.logActivity('تم تقديم طلب تنفيذ بالطلب جديد من العميل ' + clientName, 'New job order request submitted by client ' + clientName, 'other');
+        }
       }
       UI.closeModal(); UI.toast(I18N.t('saved_ok'), 'success'); render();
     });
@@ -325,6 +421,9 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin'])){
 
   document.addEventListener('lang-changed', render);
   render();
+  if(new URLSearchParams(window.location.search).get('new') === '1'){
+    openForm();
+  }
 }
 </script>
 </body>

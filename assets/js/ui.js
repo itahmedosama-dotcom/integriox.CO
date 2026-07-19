@@ -234,6 +234,13 @@ const UI = (function(){
     }
     return v + ' ' + label;
   }
+  // Wraps an LTR token (like "JOB-2026-001") with Unicode directional
+  // isolate marks so embedding it inside Arabic/RTL text can't drag the
+  // surrounding words out of order — a real, visible bug otherwise when
+  // building WhatsApp messages etc. that mix Arabic text with IDs.
+  function ltrToken(text){
+    return '\u2066' + text + '\u2069';
+  }
   function fmtDate(d){
     if(!d) return '—';
     try{
@@ -278,5 +285,5 @@ const UI = (function(){
     };
   }
 
-  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, resizeImageFile, fmtMoney, fmtDate, initials, avatarHtml, SignaturePad };
+  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, resizeImageFile, fmtMoney, fmtDate, ltrToken, initials, avatarHtml, SignaturePad };
 })();

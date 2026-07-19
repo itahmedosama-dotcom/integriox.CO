@@ -27,7 +27,7 @@ const LAYOUT = (function(){
     { key:'clients', href:'clients.html', icon:'clients', label:'nav_clients', roles:['admin'] },
     { key:'technicians', href:'technicians.html', icon:'tech', label:'nav_technicians', roles:['admin'] },
     { key:'contracts', href:'contracts.html', icon:'contracts', label:'nav_contracts', roles:['admin','client'] },
-    { key:'job-orders', href:'job-orders.html', icon:'joborders', label:'nav_job_orders', roles:['admin'] },
+    { key:'job-orders', href:'job-orders.html', icon:'joborders', label:'nav_job_orders', roles:['admin','client'] },
     { key:'visits', href:'visits.html', icon:'visits', label:'nav_visits', roles:['admin','technician','client'] },
     { key:'visit-request', href:'visit-request.html', icon:'request', label:'nav_visit_request', roles:['admin','client'] },
     { key:'payments', href:'payments.html', icon:'payments', label:'nav_payments', roles:['admin','client'] },
@@ -79,6 +79,7 @@ const LAYOUT = (function(){
             <h1 id="pageTitle" data-i18n="${NAV.find(n=>n.key===activeKey)?.label || 'nav_dashboard'}"></h1>
           </div>
           <div class="topbar-right">
+            <a class="quick-action-btn no-print" id="quickActionBtn2" href="job-orders.html?new=1" style="display:none;"></a>
             <a class="quick-action-btn no-print" id="quickActionBtn" href="#"></a>
             <div class="lang-switch">
               <button data-lang="ar">AR</button>
@@ -119,15 +120,30 @@ const LAYOUT = (function(){
 
   function mountQuickAction(shell, user){
     const el = shell.querySelector('#quickActionBtn');
+    const el2 = shell.querySelector('#quickActionBtn2');
     if(!el) return;
-    if(user.role === 'technician'){
+
+    const clientRecord = user.role==='client' && user.clientId ? DB.get('clients', user.clientId) : null;
+    const isOnDemandOnly = clientRecord && clientRecord.clientType === 'on_demand';
+
+    if(isOnDemandOnly){
+      el.style.display = 'none';
+    } else if(user.role === 'technician'){
+      el.style.display = '';
       el.href = 'visits.html';
       el.innerHTML = `<span class="quick-action-icon">🛠️</span><span data-i18n="my_visits_assigned"></span>`;
     } else {
+      el.style.display = '';
       el.href = 'visit-request.html';
       el.innerHTML = `<span class="quick-action-icon">⚡</span><span data-i18n="request_new_visit"></span>`;
     }
     I18N.apply(el);
+
+    if(el2 && user.role !== 'technician'){
+      el2.style.display = '';
+      el2.innerHTML = `<span class="quick-action-icon">🧰</span><span data-i18n="register_new_job_order"></span>`;
+      I18N.apply(el2);
+    }
   }
 
   function computeNotifications(user){
