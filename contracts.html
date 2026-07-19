@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719m">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719n">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719m"></script>
-<script src="assets/js/lists.js?v=20260719m"></script>
-<script src="assets/js/config.js?v=20260719m"></script>
-<script src="assets/js/db.js?v=20260719m"></script>
-<script src="assets/js/billing.js?v=20260719m"></script>
-<script src="assets/js/auth.js?v=20260719m"></script>
-<script src="assets/js/ui.js?v=20260719m"></script>
-<script src="assets/js/layout.js?v=20260719m"></script>
+<script src="assets/js/i18n.js?v=20260719n"></script>
+<script src="assets/js/lists.js?v=20260719n"></script>
+<script src="assets/js/config.js?v=20260719n"></script>
+<script src="assets/js/db.js?v=20260719n"></script>
+<script src="assets/js/billing.js?v=20260719n"></script>
+<script src="assets/js/auth.js?v=20260719n"></script>
+<script src="assets/js/ui.js?v=20260719n"></script>
+<script src="assets/js/layout.js?v=20260719n"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -320,11 +320,9 @@ if(ctx){
         DB.insert('contracts', data);
         DB.logActivity('تم إنشاء عقد جديد رقم ' + data.id, 'New contract created: ' + data.id, 'contract');
 
-        // Upfront contracts automatically get a pending payment sent to
-        // Payments for confirmation — confirming it there auto-issues a
-        // matching confirmed invoice. Deferred (monthly/yearly) contracts
-        // are billed separately by the recurring auto-invoice system, so
-        // skip creating an upfront payment for those.
+        // Every new contract's first charge goes to Payments for
+        // confirmation — confirming it there is what actually issues the
+        // invoice (see payments.html). Nothing reaches Invoices on its own.
         if(data.paymentTerms === 'upfront' && data.amount > 0){
           const payment = {
             id: 'PAY-' + (5000 + DB.all('payments').length + 1),
@@ -333,6 +331,25 @@ if(ctx){
           };
           DB.insert('payments', payment);
           DB.logActivity('تم إنشاء دفعة بانتظار التأكيد للعقد ' + data.id, 'Pending payment created for contract ' + data.id, 'payment');
+        } else if(data.paymentTerms === 'deferred' && data.amount > 0){
+          const months = Number(data.durationMonths || 12) || 12;
+          const perMonth = Number(data.amount||0) / months;
+          const cycle = data.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+          const firstAmount = Math.round(perMonth * (cycle==='yearly' ? 12 : 1) * 100) / 100;
+          const periodKey = cycle==='yearly' ? String(new Date().getFullYear()) : DB.todayISO().slice(0,7);
+          if(firstAmount > 0){
+            const payment = {
+              id: 'PAY-' + (5000 + DB.all('payments').length + 1),
+              contractId: data.id, clientId: data.clientId,
+              amount: firstAmount, method: 'bank', date: DB.todayISO(), status: 'review',
+            };
+            DB.insert('payments', payment);
+            DB.logActivity('تم إنشاء أول دفعة دورية بانتظار التأكيد للعقد ' + data.id, 'First recurring pending payment created for contract ' + data.id, 'payment');
+          }
+          // Mark this period as already handled so the recurring
+          // auto-billing system (BILLING.runAutoInvoices) doesn't create a
+          // duplicate the moment the admin next opens the dashboard.
+          DB.update('contracts', data.id, { lastAutoInvoiceMonth: periodKey });
         }
       }
       UI.closeModal(); UI.toast(I18N.t('saved_ok'),'success'); render();
