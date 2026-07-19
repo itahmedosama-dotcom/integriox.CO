@@ -9,19 +9,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260719w">
+<link rel="stylesheet" href="assets/css/style.css?v=20260719y">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=20260719w"></script>
-<script src="assets/js/lists.js?v=20260719w"></script>
-<script src="assets/js/config.js?v=20260719w"></script>
-<script src="assets/js/db.js?v=20260719w"></script>
-<script src="assets/js/billing.js?v=20260719w"></script>
-<script src="assets/js/auth.js?v=20260719w"></script>
-<script src="assets/js/ui.js?v=20260719w"></script>
-<script src="assets/js/layout.js?v=20260719w"></script>
+<script src="assets/js/i18n.js?v=20260719y"></script>
+<script src="assets/js/lists.js?v=20260719y"></script>
+<script src="assets/js/config.js?v=20260719y"></script>
+<script src="assets/js/db.js?v=20260719y"></script>
+<script src="assets/js/billing.js?v=20260719y"></script>
+<script src="assets/js/auth.js?v=20260719y"></script>
+<script src="assets/js/ui.js?v=20260719y"></script>
+<script src="assets/js/layout.js?v=20260719y"></script>
 <script>
 const ctx = LAYOUT.render('clients');
 if(ctx){
@@ -30,7 +30,6 @@ if(ctx){
   function render(){
     const clients = DB.all('clients');
     const contracts = DB.all('contracts');
-    const jobOrders = DB.all('jobOrders');
     contentEl.innerHTML = `
       <div class="filters-bar">
         <div class="search-box">
@@ -53,7 +52,7 @@ if(ctx){
             <thead><tr>
               <th>#</th><th data-i18n="client_type_col"></th><th data-i18n="client_name_ar"></th>
               <th data-i18n="client_phone"></th><th data-i18n="client_email"></th>
-              <th data-i18n="client_address"></th><th data-i18n="contract_period_dates"></th><th data-i18n="renewal_notice_days"></th>
+              <th data-i18n="client_address"></th>
               <th data-i18n="client_contracts_count"></th><th data-i18n="actions"></th>
             </tr></thead>
             <tbody id="rows"></tbody>
@@ -95,18 +94,13 @@ if(ctx){
 
         // client type badge: derived live from actual data, not a stored
         // field, so it can never go stale.
-        const hasContract = contracts.some(k=>k.clientId===c.id);
-        const hasJobOrder = jobOrders.some(j=>j.clientId===c.id);
-        let typeBadge;
-        if(hasContract && hasJobOrder) typeBadge = `<span class="badge badge-info" data-i18n="client_type_both"></span>`;
-        else if(hasContract) typeBadge = `<span class="badge badge-success" data-i18n="client_type_contract"></span>`;
-        else if(hasJobOrder) typeBadge = `<span class="badge" style="background:#EDE4FB; color:#6B3FA0;" data-i18n="client_type_on_demand"></span>`;
-        else typeBadge = `<span class="badge badge-mute" data-i18n="client_type_none"></span>`;
-
-        // most relevant active contract, for the period/renewal columns —
-        // the one ending soonest, if there's more than one.
-        const clientContracts = contracts.filter(k=>k.clientId===c.id && k.status==='active' && k.endDate).sort((a,b)=>(a.endDate||'').localeCompare(b.endDate||''));
-        const primaryContract = clientContracts[0];
+        const typeBadgeMap = {
+          contract: `<span class="badge badge-success" data-i18n="client_type_contract"></span>`,
+          on_demand: `<span class="badge" style="background:#EDE4FB; color:#6B3FA0;" data-i18n="client_type_on_demand"></span>`,
+          both: `<span class="badge badge-info" data-i18n="client_type_both"></span>`,
+          none: `<span class="badge badge-mute" data-i18n="client_type_none"></span>`,
+        };
+        const typeBadge = typeBadgeMap[c.clientType] || typeBadgeMap.none;
 
         return `<tr>
           <td class="table-row-num">${idx+1}</td>
@@ -121,15 +115,13 @@ if(ctx){
           <td>${c.phone||'—'}</td>
           <td>${c.email||'—'}</td>
           <td>${c.address||'—'} ${c.locationLink ? `<a href="${c.locationLink}" target="_blank" rel="noopener">📍</a>` : ''}</td>
-          <td style="font-size:12px;">${primaryContract ? `<div>${UI.fmtDate(primaryContract.startDate)}</div><div>${UI.fmtDate(primaryContract.endDate)}</div>` : '—'}</td>
-          <td>${primaryContract ? `${primaryContract.renewalNoticeDays||60} ${I18N.t('days_unit')}` : '—'}</td>
           <td><a href="contracts.html?client=${c.id}" class="badge badge-info" style="text-decoration:none;">${count}</a></td>
           <td class="row-actions">
             <a class="btn btn-sm btn-outline" href="contracts.html?client=${c.id}" title="${I18N.t('nav_contracts')}">📋</a>
             <a class="btn btn-sm btn-outline" href="visits.html?client=${c.id}" title="${I18N.t('nav_visits')}">🛠️</a>
             <a class="btn btn-sm btn-outline" href="invoices.html?client=${c.id}" title="${I18N.t('nav_invoices')}">🧾</a>
-            <button type="button" class="btn btn-sm btn-outline" data-edit="${c.id}" data-i18n="edit"></button>
-            <button type="button" class="btn btn-sm btn-danger" data-del="${c.id}" data-i18n="delete"></button>
+            <button type="button" class="btn btn-sm btn-outline" data-edit="${c.id}" title="${I18N.t('edit')}">✏️</button>
+            <button type="button" class="btn btn-sm btn-danger" data-del="${c.id}" title="${I18N.t('delete')}">🗑️</button>
           </td>
         </tr>`;
       }).join('');
@@ -166,6 +158,16 @@ if(ctx){
     const overlay = UI.openModal(`
       <div class="modal-head"><h3 data-i18n="${editing?'edit':'add_client'}"></h3><button type="button" class="close-x" id="mClose">&times;</button></div>
       <div class="modal-body">
+        <div class="field">
+          <label data-i18n="client_type_col"></label>
+          <select id="fClientType">
+            <option value="none" data-i18n="client_type_none" ${editing && (!client.clientType || client.clientType==='none') ? 'selected' : (!editing ? 'selected' : '')}></option>
+            <option value="contract" data-i18n="client_type_contract" ${editing && client.clientType==='contract' ? 'selected' : ''}></option>
+            <option value="on_demand" data-i18n="client_type_on_demand" ${editing && client.clientType==='on_demand' ? 'selected' : ''}></option>
+            <option value="both" data-i18n="client_type_both" ${editing && client.clientType==='both' ? 'selected' : ''}></option>
+          </select>
+          <p class="hint" data-i18n="client_type_hint" style="margin-top:4px;"></p>
+        </div>
         <div class="field-row">
           <div class="field"><label data-i18n="client_name_ar"></label><input type="text" id="fNameAr" value="${client?(client.nameAr||client.name||''):''}"></div>
           <div class="field"><label data-i18n="client_name_en"></label><input type="text" id="fNameEn" value="${client?(client.nameEn||''):''}"></div>
@@ -255,6 +257,7 @@ if(ctx){
         link: (overlay.querySelector(`[data-branch-link="${i}"]`)||{value:b.link}).value.trim(),
       })).filter(b=>b.name || b.link);
       const data = {
+        clientType: overlay.querySelector('#fClientType').value,
         nameAr,
         name: nameAr, // kept for backward-compat with pages that read client.name
         nameEn: overlay.querySelector('#fNameEn').value.trim(),

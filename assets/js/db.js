@@ -346,6 +346,20 @@ const DB = (function(){
     pushRemote({ action:'delete', collection:col, id });
   }
   function getSettings(){ return load().settings; }
+  // Auto-upgrades a client's type badge (contract / on_demand / both) —
+  // called whenever a contract or job order is created for them. Never
+  // downgrades, and only ever combines with what's already there, so an
+  // admin's explicit choice is respected as a floor, not overwritten.
+  function markClientType(clientId, kind){
+    if(!clientId) return;
+    const client = get('clients', clientId);
+    if(!client) return;
+    const current = client.clientType || 'none';
+    let next = current;
+    if(current === 'none') next = kind;
+    else if(current !== kind && current !== 'both') next = 'both';
+    if(next !== current) update('clients', clientId, { clientType: next });
+  }
   function saveSettings(patch){
     const data = load();
     data.settings = { ...data.settings, ...patch };
@@ -383,7 +397,7 @@ const DB = (function(){
   return {
     uid, nextSeqId, todayISO, load, save, resetDemo,
     all, get, insert, update, remove,
-    getSettings, saveSettings, logActivity,
+    getSettings, saveSettings, logActivity, markClientType,
     encodeSecret, decodeSecret, syncFull, syncNow, pullFromSheet, clearAllData, shippedConfig,
     setMode:(m)=>MODE=m, getMode:()=>MODE,
   };
