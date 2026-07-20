@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191w">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191x">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191w"></script>
-<script src="assets/js/lists.js?v=202607191w"></script>
-<script src="assets/js/config.js?v=202607191w"></script>
-<script src="assets/js/db.js?v=202607191w"></script>
-<script src="assets/js/billing.js?v=202607191w"></script>
-<script src="assets/js/auth.js?v=202607191w"></script>
-<script src="assets/js/ui.js?v=202607191w"></script>
-<script src="assets/js/layout.js?v=202607191w"></script>
+<script src="assets/js/i18n.js?v=202607191x"></script>
+<script src="assets/js/lists.js?v=202607191x"></script>
+<script src="assets/js/config.js?v=202607191x"></script>
+<script src="assets/js/db.js?v=202607191x"></script>
+<script src="assets/js/billing.js?v=202607191x"></script>
+<script src="assets/js/auth.js?v=202607191x"></script>
+<script src="assets/js/ui.js?v=202607191x"></script>
+<script src="assets/js/layout.js?v=202607191x"></script>
 <script>
 const ctx = LAYOUT.render('payments');
 if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
@@ -95,7 +95,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
             : (p.jobOrderId
                 ? `Hello ${displayName} | Service request No. ${p.jobOrderId} | This is a reminder about the payment due for this service request | The due date is ${UI.fmtDate(p.date)}`
                 : `Hello ${displayName} | Contract No. ${p.contractId||'—'} | This is a reminder about your maintenance contract payment | The due date is ${dueDateText}`));
-          return `https://wa.me/${phone}?text=${text}`;
+          return `https://web.whatsapp.com/send?phone=${phone}&text=${text}`;
         })() : null;
         return `<tr>
           <td>${UI.fmtDate(p.date)}</td>
@@ -200,7 +200,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
             : (firstInvoice.jobOrderId
                 ? `Hello ${client.name} | Service request No. ${contractLabel} | This is a reminder about the payment due for this service request | The due date is ${dueDateText}`
                 : `Hello ${client.name} | Contract No. ${contractLabel} | This is a reminder about your maintenance contract payment | The due date is ${dueDateText}`));
-          window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+          window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${text}`, '_blank');
         }, idx * 400); // stagger so the browser doesn't block a burst of popups
       });
       DB.logActivity('تم إرسال تذكيرات جماعية لـ ' + targets.length + ' عميل', 'Sent bulk reminders to ' + targets.length + ' clients', 'payment');
