@@ -52,6 +52,16 @@ const DB = (function(){
         iban: '',
         companySignature: '',
         companyStamp: '',
+        // Controls the look of printed documents (contract/invoice/
+        // payment receipt) — edited from document-design.html and
+        // applied live the moment it's saved.
+        documentTheme: {
+          accentColor: '#0B2545',
+          font: 'Cairo',
+          showQr: true,
+          showStamp: true,
+          showWatermark: true,
+        },
         // Service catalog for one-off job orders (تنفيذ بالطلب) — starts
         // empty; the admin adds services as needed directly from that
         // screen.

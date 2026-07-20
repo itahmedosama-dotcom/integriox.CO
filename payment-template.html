@@ -11,20 +11,20 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191q">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191s">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191q"></script>
-<script src="assets/js/lists.js?v=202607191q"></script>
-<script src="assets/js/config.js?v=202607191q"></script>
-<script src="assets/js/db.js?v=202607191q"></script>
-<script src="assets/js/billing.js?v=202607191q"></script>
-<script src="assets/js/auth.js?v=202607191q"></script>
-<script src="assets/js/ui.js?v=202607191q"></script>
-<script src="assets/js/layout.js?v=202607191q"></script>
+<script src="assets/js/i18n.js?v=202607191s"></script>
+<script src="assets/js/lists.js?v=202607191s"></script>
+<script src="assets/js/config.js?v=202607191s"></script>
+<script src="assets/js/db.js?v=202607191s"></script>
+<script src="assets/js/billing.js?v=202607191s"></script>
+<script src="assets/js/auth.js?v=202607191s"></script>
+<script src="assets/js/ui.js?v=202607191s"></script>
+<script src="assets/js/layout.js?v=202607191s"></script>
 <script>
 const ctx = LAYOUT.render('payments');
 if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
@@ -33,6 +33,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
   const paymentId = params.get('id');
   const payment = DB.get('payments', paymentId);
   const settings = DB.getSettings();
+  const theme = Object.assign({ accentColor:'#0B2545', font:'Cairo', showQr:true, showStamp:true, showWatermark:true }, settings.documentTheme || {});
 
   const methodLabel = { bank:'method_bank', cash:'method_cash', other:'method_other' };
   const statusLabel = { review:'pay_review', confirmed:'pay_confirmed', rejected:'pay_rejected', not_paid:'pay_not_paid' };
@@ -58,12 +59,13 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
         <button type="button" class="btn btn-accent" id="printBtn">🖨️ <span data-i18n="print_receipt"></span></button>
       </div>
 
-      <div class="card" id="printArea" style="position:relative; overflow:hidden;">
+      <div class="card" id="printArea" style="position:relative; overflow:hidden; --navy:${theme.accentColor}; font-family:'${theme.font}', sans-serif;">
+        ${theme.showWatermark ? `
         <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-28deg); z-index:0; pointer-events:none; white-space:nowrap;">
           <div style="font-weight:800; font-size:64px; letter-spacing:4px; text-transform:uppercase; color:${meta.color}; opacity:0.10;">
             ${I18N.t(meta.label)}
           </div>
-        </div>
+        </div>` : ''}
         <div style="position:relative; z-index:1;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:26px; padding-bottom:20px; border-bottom:2px solid var(--navy);">
           <div style="display:flex; align-items:center; gap:12px;">
@@ -144,7 +146,7 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
             </div>
           </div>
         </div>
-        ${settings.companyStamp ? `<div style="display:flex; justify-content:center; margin-top:14px;"><img src="${settings.companyStamp}" style="width:100px; height:100px; object-fit:contain;" alt="stamp"></div>` : ''}
+        ${(settings.companyStamp && theme.showStamp) ? `<div style="display:flex; justify-content:center; margin-top:14px;"><img src="${settings.companyStamp}" style="width:100px; height:100px; object-fit:contain;" alt="stamp"></div>` : ''}
 
         ${payment.invoiceId ? `
         <div class="no-print" style="margin-top:18px;">

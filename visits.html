@@ -11,20 +11,20 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191q">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191s">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191q"></script>
-<script src="assets/js/lists.js?v=202607191q"></script>
-<script src="assets/js/config.js?v=202607191q"></script>
-<script src="assets/js/db.js?v=202607191q"></script>
-<script src="assets/js/billing.js?v=202607191q"></script>
-<script src="assets/js/auth.js?v=202607191q"></script>
-<script src="assets/js/ui.js?v=202607191q"></script>
-<script src="assets/js/layout.js?v=202607191q"></script>
+<script src="assets/js/i18n.js?v=202607191s"></script>
+<script src="assets/js/lists.js?v=202607191s"></script>
+<script src="assets/js/config.js?v=202607191s"></script>
+<script src="assets/js/db.js?v=202607191s"></script>
+<script src="assets/js/billing.js?v=202607191s"></script>
+<script src="assets/js/auth.js?v=202607191s"></script>
+<script src="assets/js/ui.js?v=202607191s"></script>
+<script src="assets/js/layout.js?v=202607191s"></script>
 <script>
 const ctx = LAYOUT.render('visits');
 if(ctx){
@@ -55,7 +55,7 @@ if(ctx){
     const techs = DB.all('technicians');
 
     contentEl.innerHTML = `
-      <div class="filters-bar">
+      <div class="filters-bar no-print">
         <select id="statusFilter">
           <option value="" data-i18n="all"></option>
           <option value="requested" data-i18n="visit_requested"></option>
@@ -64,11 +64,14 @@ if(ctx){
           <option value="done" data-i18n="visit_done"></option>
           <option value="cancelled" data-i18n="visit_cancelled"></option>
         </select>
+        <button type="button" class="btn btn-outline no-print" id="printSelectedBtn" disabled>🖨️ <span data-i18n="print_selected"></span> (<span id="selectedCount">0</span>)</button>
       </div>
-      <div class="card">
+      <div class="card no-print">
         <div class="table-wrap">
           <table>
             <thead><tr>
+              <th class="no-print"><input type="checkbox" id="selectAll" style="width:auto;"></th>
+              <th>#</th><th data-i18n="job_id"></th>
               <th data-i18n="visit_date"></th><th data-i18n="contract_client"></th><th data-i18n="visit_technician"></th>
               <th data-i18n="visit_type"></th><th data-i18n="visit_status"></th><th data-i18n="details"></th><th data-i18n="actions"></th>
             </tr></thead>
@@ -77,6 +80,7 @@ if(ctx){
         </div>
         <div id="emptyState" class="empty-state hidden"><div data-i18n="no_data"></div></div>
       </div>
+      <div id="bulkPrintArea" class="print-only" style="display:none;"></div>
     `;
     I18N.apply(contentEl);
     const rowsEl = contentEl.querySelector('#rows');
@@ -85,10 +89,13 @@ if(ctx){
       const st = contentEl.querySelector('#statusFilter').value;
       const list = visits.filter(v=> !st || v.status===st).sort((a,b)=> b.date.localeCompare(a.date));
       contentEl.querySelector('#emptyState').classList.toggle('hidden', list.length>0);
-      rowsEl.innerHTML = list.map(v=>{
+      rowsEl.innerHTML = list.map((v,idx)=>{
         const client = clients.find(c=>c.id===v.clientId);
         const tech = techs.find(t=>t.id===v.techId);
         return `<tr>
+          <td class="no-print"><input type="checkbox" class="rowCheck" value="${v.id}" style="width:auto;"></td>
+          <td class="table-row-num">${idx+1}</td>
+          <td><strong>${v.id}</strong></td>
           <td>${UI.fmtDate(v.date)} <span class="text-muted">${v.time||''}</span></td>
           <td>${client?client.name:'—'}</td>
           <td>${tech?tech.name:`<span class="text-muted">—</span>`}</td>
@@ -97,6 +104,7 @@ if(ctx){
           <td class="text-muted" style="max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${v.description||'—'}</td>
           <td class="row-actions">
             <button type="button" class="btn btn-sm btn-outline" data-view="${v.id}" data-i18n="details"></button>
+            <button type="button" class="btn btn-sm btn-outline no-print" data-print="${v.id}" title="${I18N.t('print_selected')}">🖨️</button>
             ${isAdmin && !tech ? `<button type="button" class="btn btn-sm btn-accent" data-assign="${v.id}" data-i18n="assign_tech"></button>` : ''}
             ${(isAdmin||isTech) && v.status!=='done' && v.status!=='cancelled' ? `<button type="button" class="btn btn-sm btn-outline" data-complete="${v.id}" data-i18n="visit_done"></button>` : ''}
             ${isAdmin ? `<button type="button" class="btn btn-sm btn-outline" data-edit="${v.id}" data-i18n="edit"></button>` : ''}
@@ -105,7 +113,9 @@ if(ctx){
         </tr>`;
       }).join('');
       I18N.apply(rowsEl);
+      wireBulkPrint(list);
       rowsEl.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click', ()=>openDetails(visits.find(v=>v.id===b.dataset.view), clients, techs)));
+      rowsEl.querySelectorAll('[data-print]').forEach(b=>b.addEventListener('click', ()=>printVisits([visits.find(v=>v.id===b.dataset.print)], clients, techs)));
       rowsEl.querySelectorAll('[data-assign]').forEach(b=>b.addEventListener('click', ()=>openAssign(b.dataset.assign, techs)));
       rowsEl.querySelectorAll('[data-complete]').forEach(b=>b.addEventListener('click', ()=>{
         DB.update('visits', b.dataset.complete, { status:'done' });
@@ -119,6 +129,71 @@ if(ctx){
           UI.toast(I18N.t('deleted_ok'), 'success'); render();
         });
       }));
+    }
+
+    function wireBulkPrint(list){
+      const printBtn = contentEl.querySelector('#printSelectedBtn');
+      const countEl = contentEl.querySelector('#selectedCount');
+      const selectAll = contentEl.querySelector('#selectAll');
+      function updateCount(){
+        const checked = rowsEl.querySelectorAll('.rowCheck:checked').length;
+        countEl.textContent = checked;
+        printBtn.disabled = checked === 0;
+      }
+      rowsEl.querySelectorAll('.rowCheck').forEach(cb=> cb.addEventListener('change', updateCount));
+      if(selectAll){
+        selectAll.checked = false;
+        selectAll.addEventListener('change', ()=>{
+          rowsEl.querySelectorAll('.rowCheck').forEach(cb=> cb.checked = selectAll.checked);
+          updateCount();
+        });
+      }
+      printBtn.onclick = ()=>{
+        const ids = Array.from(rowsEl.querySelectorAll('.rowCheck:checked')).map(cb=>cb.value);
+        const selected = list.filter(v=>ids.includes(v.id));
+        printVisits(selected, clients, techs);
+      };
+      updateCount();
+    }
+
+    // Renders full details for one or more visits into a print-only area
+    // and triggers the browser print dialog — used for both the
+    // single-row print button and "طباعة المحدد" (print selected).
+    function printVisits(visitList, clientsList, techsList){
+      const area = contentEl.querySelector('#bulkPrintArea');
+      const settings = DB.getSettings();
+      area.innerHTML = visitList.map(v=>{
+        const client = clientsList.find(c=>c.id===v.clientId);
+        const tech = techsList.find(t=>t.id===v.techId);
+        return `
+        <div style="page-break-after:always; padding:24px; font-family:inherit;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--navy); padding-bottom:14px; margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <img src="assets/images/logo.png" style="width:40px;height:40px;">
+              <strong style="font-size:15px;">${settings.companyName||'Integriox'}</strong>
+            </div>
+            <div style="text-align:end;">
+              <div style="font-weight:800;" data-i18n="visit_details_title"></div>
+              <div class="text-muted" style="font-size:12px;">${v.id}</div>
+            </div>
+          </div>
+          <div class="grid grid-3" style="margin-bottom:16px;">
+            <div><div class="text-muted" style="font-size:11px;" data-i18n="visit_date"></div><div style="font-weight:700;">${UI.fmtDate(v.date)} ${v.time||''}</div></div>
+            <div><div class="text-muted" style="font-size:11px;" data-i18n="contract_client"></div><div style="font-weight:700;">${client?client.name:'—'}</div></div>
+            <div><div class="text-muted" style="font-size:11px;" data-i18n="visit_technician"></div><div style="font-weight:700;">${tech?tech.name:'—'}</div></div>
+            <div><div class="text-muted" style="font-size:11px;" data-i18n="visit_type"></div><div style="font-weight:700;" data-i18n="${typeLabelMap[v.type]||'issue_periodic'}"></div></div>
+            <div><div class="text-muted" style="font-size:11px;" data-i18n="visit_status"></div><div style="font-weight:700;" data-i18n="visit_${v.status}"></div></div>
+            <div><div class="text-muted" style="font-size:11px;" data-i18n="invoice_contract"></div><div style="font-weight:700;">${v.contractId||'—'}</div></div>
+          </div>
+          <div class="text-muted" style="font-size:11px;" data-i18n="visit_description"></div>
+          <div style="margin-bottom:14px;">${v.description||'—'}</div>
+          ${v.contactName || v.contactPhone ? `
+          <div class="text-muted" style="font-size:11px;" data-i18n="visit_contact"></div>
+          <div>${v.contactName||''} ${v.contactPhone||''}</div>` : ''}
+        </div>`;
+      }).join('');
+      I18N.apply(area);
+      setTimeout(()=>window.print(), 60);
     }
     contentEl.querySelector('#statusFilter').addEventListener('change', draw);
     draw();
