@@ -36,7 +36,15 @@ const DB = (function(){
   // it's a UX/obscurity control, not real per-record access security. Be
   // careful sharing these links, and don't rely on them for sensitive data.
   function randomToken(){
-    return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    try{
+      return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }catch(e){
+      // Fallback for older/restrictive browser contexts without a Web
+      // Crypto API — still random enough for an obscurity-only token.
+      let s = '';
+      for(let i=0;i<32;i++) s += Math.floor(Math.random()*16).toString(16);
+      return s;
+    }
   }
   // Returns the record's existing public token, generating and saving one
   // the first time it's needed.

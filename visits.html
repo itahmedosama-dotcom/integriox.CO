@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191z">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191aa">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191z"></script>
-<script src="assets/js/lists.js?v=202607191z"></script>
-<script src="assets/js/config.js?v=202607191z"></script>
-<script src="assets/js/db.js?v=202607191z"></script>
-<script src="assets/js/billing.js?v=202607191z"></script>
-<script src="assets/js/auth.js?v=202607191z"></script>
-<script src="assets/js/ui.js?v=202607191z"></script>
-<script src="assets/js/layout.js?v=202607191z"></script>
+<script src="assets/js/i18n.js?v=202607191aa"></script>
+<script src="assets/js/lists.js?v=202607191aa"></script>
+<script src="assets/js/config.js?v=202607191aa"></script>
+<script src="assets/js/db.js?v=202607191aa"></script>
+<script src="assets/js/billing.js?v=202607191aa"></script>
+<script src="assets/js/auth.js?v=202607191aa"></script>
+<script src="assets/js/ui.js?v=202607191aa"></script>
+<script src="assets/js/layout.js?v=202607191aa"></script>
 <script>
 const ctx = LAYOUT.render('visits');
 if(ctx){
@@ -128,17 +128,21 @@ if(ctx){
       rowsEl.querySelectorAll('[data-print]').forEach(b=>b.addEventListener('click', ()=>printVisits([visits.find(v=>v.id===b.dataset.print)], clients, techs)));
       rowsEl.querySelectorAll('[data-assign]').forEach(b=>b.addEventListener('click', ()=>openAssign(b.dataset.assign, techs)));
       rowsEl.querySelectorAll('[data-wa-visit]').forEach(b=>b.addEventListener('click', ()=>{
-        const v = visits.find(x=>x.id===b.dataset.waVisit);
-        const c2 = clients.find(x=>x.id===v.clientId);
-        if(!v || !c2 || !c2.phone) return;
-        const phone = c2.phone.replace(/^0/, '966').replace(/\D/g,'');
-        const token = DB.ensurePublicToken('visits', v.id, 'viewToken');
-        const link = window.location.origin + window.location.pathname.replace('visits.html','') + 'visit-view.html?id=' + v.id + '&token=' + token;
-        const idSafe = UI.ltrToken(v.id);
-        const text = encodeURIComponent(I18N.getLang()==='ar'
-          ? `\u200Fمرحبًا ${c2.name} | تم إنهاء زيارتكم رقم ${idSafe} | ${link}`
-          : `Hello ${c2.name} | Your visit ${v.id} has been completed | ${link}`);
-        UI.waChoice(phone, text);
+        try{
+          const v = visits.find(x=>x.id===b.dataset.waVisit);
+          const c2 = clients.find(x=>x.id===v.clientId);
+          if(!v || !c2 || !c2.phone) return;
+          const phone = c2.phone.replace(/^0/, '966').replace(/\D/g,'');
+          const token = DB.ensurePublicToken('visits', v.id, 'viewToken');
+          const link = window.location.origin + window.location.pathname.replace('visits.html','') + 'visit-view.html?id=' + v.id + '&token=' + token;
+          const idSafe = UI.ltrToken(v.id);
+          const text = encodeURIComponent(I18N.getLang()==='ar'
+            ? `\u200Fمرحبًا ${c2.name} | تم إنهاء زيارتكم رقم ${idSafe} | ${link}`
+            : `Hello ${c2.name} | Your visit ${v.id} has been completed | ${link}`);
+          UI.waChoice(phone, text);
+        }catch(err){
+          UI.toast(I18N.t('wa_send_error') + (err && err.message ? (': ' + err.message) : ''), 'error');
+        }
       }));
       rowsEl.querySelectorAll('[data-complete]').forEach(b=>b.addEventListener('click', ()=>{
         openCompleteReportModal(visits.find(v=>v.id===b.dataset.complete));
