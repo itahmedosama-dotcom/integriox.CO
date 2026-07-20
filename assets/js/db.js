@@ -266,13 +266,27 @@ const DB = (function(){
      do return a readable cross-origin response for both GET and POST. If
      the browser still blocks reading it for any reason, we fall back to a
      best-effort no-cors resend (fire-and-forget, like before) so the write
-     is still attempted even though we can't confirm it. */
+     is still attempted even though we can't confirm it.
+
+     A small concurrency-limited queue caps how many requests to the Sheet
+     backend can be in flight from this tab at once, so a burst of local
+     writes (e.g. many rows changing close together) can't itself spike
+     Google's "simultaneous executions" limit on the Apps Script project. */
+  const REMOTE_QUEUE_MAX_CONCURRENT = 3;
+  let remoteInFlight = 0;
+  const remoteQueue = [];
+  function runNextQueued(){
+    if(remoteInFlight >= REMOTE_QUEUE_MAX_CONCURRENT || remoteQueue.length === 0) return;
+    const job = remoteQueue.shift();
+    remoteInFlight++;
+    job().finally(()=>{ remoteInFlight--; runNextQueued(); });
+  }
   function pushRemote(body, opts){
     const data = load();
     if(MODE !== 'remote' || !data.settings.sheetUrl) return;
     const payload = JSON.stringify(Object.assign({ apiKey: decodeSecret(data.settings.apiKeyEnc) }, body));
     const url = data.settings.sheetUrl;
-    fetch(url, { method:'POST', body: payload })
+    remoteQueue.push(()=> fetch(url, { method:'POST', body: payload })
       .then(res=>res.json())
       .then(json=>{
         if(!json || json.error){
@@ -288,7 +302,8 @@ const DB = (function(){
         try{
           fetch(url, { method:'POST', mode:'no-cors', body: payload }).catch(()=>{});
         }catch(e){ /* fully offline */ }
-      });
+      }));
+    runNextQueued();
   }
   let lastSyncWarningAt = 0;
   function notifySyncIssue(errText){
