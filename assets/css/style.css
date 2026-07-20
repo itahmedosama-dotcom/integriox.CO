@@ -238,9 +238,10 @@ html[dir="rtl"] .main{ margin-right:var(--sidebar-w); }
 .topbar{
   height:var(--topbar-h); background:var(--surface); border-bottom:1px solid var(--line);
   display:flex; align-items:center; justify-content:space-between; padding:0 26px; position:sticky; top:0; z-index:30;
+  gap:10px; overflow-x:auto;
 }
-.topbar h1{ font-size:18px; margin:0; font-weight:800; }
-.topbar-right{ display:flex; align-items:center; gap:10px; }
+.topbar h1{ font-size:18px; margin:0; font-weight:800; white-space:nowrap; }
+.topbar-right{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
 .lang-switch{
   display:flex; border:1px solid var(--line); border-radius:99px; overflow:hidden; font-size:12px; font-weight:700;
 }
@@ -253,12 +254,21 @@ html[dir="rtl"] .main{ margin-right:var(--sidebar-w); }
 .menu-toggle{ display:none; }
 
 @media (max-width:960px){
-  .sidebar{ transform:translateX(-110%); }
+  .sidebar{ transform:translateX(-110%); z-index:250; }
   html[dir="rtl"] .sidebar{ transform:translateX(110%); }
   .sidebar.open{ transform:none; }
   .main{ margin-inline-start:0 !important; }
   .menu-toggle{ display:flex; }
   .page{ padding:16px; }
+  .topbar{ padding:0 14px; }
+  .sidebar-backdrop{ display:none; position:fixed; inset:0; background:rgba(11,37,69,.45); z-index:249; }
+  .sidebar-backdrop.open{ display:block; }
+}
+@media (max-width:520px){
+  .topbar{ padding:0 10px; gap:6px; }
+  .topbar h1{ font-size:15px; }
+  .icon-btn{ width:34px; height:34px; }
+  .quick-action-btn{ padding:8px 10px; font-size:12px; }
 }
 
 /* ---------- auth pages ---------- */

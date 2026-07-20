@@ -50,6 +50,7 @@ const LAYOUT = (function(){
 
     const shell = document.getElementById('app-shell');
     shell.innerHTML = `
+      <div class="sidebar-backdrop no-print" id="sidebarBackdrop"></div>
       <div class="sidebar" id="sidebar">
         <div class="sidebar-brand">
           <img src="assets/images/logo.png" alt="Integriox">
@@ -105,7 +106,16 @@ const LAYOUT = (function(){
     shell.querySelector('#logoutBtn').addEventListener('click', AUTH.logout);
     const menuToggle = shell.querySelector('#menuToggle');
     const sidebar = shell.querySelector('#sidebar');
-    if(menuToggle) menuToggle.addEventListener('click', ()=> sidebar.classList.toggle('open'));
+    const sidebarBackdrop = shell.querySelector('#sidebarBackdrop');
+    function toggleSidebar(open){
+      const shouldOpen = open !== undefined ? open : !sidebar.classList.contains('open');
+      sidebar.classList.toggle('open', shouldOpen);
+      if(sidebarBackdrop) sidebarBackdrop.classList.toggle('open', shouldOpen);
+    }
+    if(menuToggle) menuToggle.addEventListener('click', ()=> toggleSidebar());
+    if(sidebarBackdrop) sidebarBackdrop.addEventListener('click', ()=> toggleSidebar(false));
+    // tapping a nav link on mobile should close the drawer, not leave it open over the new page
+    shell.querySelectorAll('.nav-link').forEach(a=> a.addEventListener('click', ()=> toggleSidebar(false)));
 
     I18N.apply(shell);
     UI.mountFooter(shell.querySelector('.main'));
