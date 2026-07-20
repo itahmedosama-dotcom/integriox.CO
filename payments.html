@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191ai">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191ak">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191ai"></script>
-<script src="assets/js/lists.js?v=202607191ai"></script>
-<script src="assets/js/config.js?v=202607191ai"></script>
-<script src="assets/js/db.js?v=202607191ai"></script>
-<script src="assets/js/billing.js?v=202607191ai"></script>
-<script src="assets/js/auth.js?v=202607191ai"></script>
-<script src="assets/js/ui.js?v=202607191ai"></script>
-<script src="assets/js/layout.js?v=202607191ai"></script>
+<script src="assets/js/i18n.js?v=202607191ak"></script>
+<script src="assets/js/lists.js?v=202607191ak"></script>
+<script src="assets/js/config.js?v=202607191ak"></script>
+<script src="assets/js/db.js?v=202607191ak"></script>
+<script src="assets/js/billing.js?v=202607191ak"></script>
+<script src="assets/js/auth.js?v=202607191ak"></script>
+<script src="assets/js/ui.js?v=202607191ak"></script>
+<script src="assets/js/layout.js?v=202607191ak"></script>
 <script>
 const ctx = LAYOUT.render('payments');
 if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
@@ -37,6 +37,9 @@ if(ctx && LAYOUT.guardRoles(ctx, ['admin','client'])){
   const methodLabel = { bank:'method_bank', cash:'method_cash', other:'method_other' };
 
   function render(){
+    // Check once per visit whether any deferred-payment contract has
+    // reached its due day and needs a fresh pending payment.
+    if(isAdmin) BILLING.runAutoInvoices();
     let payments = DB.all('payments');
     if(!isAdmin) payments = payments.filter(p=>p.clientId===user.clientId);
     const clients = DB.all('clients');

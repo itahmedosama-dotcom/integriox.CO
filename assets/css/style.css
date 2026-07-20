@@ -452,12 +452,14 @@ html[dir="rtl"] .pwa-install-float{ padding:11px 14px 11px 16px; }
 
 /* ---------- boot loading (index.html, while checking for an existing admin) ---------- */
 .boot-loading{ min-height:100vh; display:flex; align-items:center; justify-content:center; }
-.boot-spinner{
-  width:34px; height:34px; border-radius:50%;
-  border:3px solid var(--line); border-top-color:var(--blue);
-  animation:boot-spin 0.8s linear infinite;
+.boot-logo-pulse{
+  width:64px; height:64px; border-radius:16px;
+  animation:boot-pulse 1.4s ease-in-out infinite;
 }
-@keyframes boot-spin{ to{ transform:rotate(360deg); } }
+@keyframes boot-pulse{
+  0%, 100%{ transform:scale(1); opacity:1; }
+  50%{ transform:scale(0.86); opacity:0.55; }
+}
 
 /* ---------- captcha ---------- */
 .captcha-box{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
