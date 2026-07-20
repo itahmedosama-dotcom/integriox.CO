@@ -253,12 +253,12 @@ html[dir="rtl"] .main{ margin-right:var(--sidebar-w); }
 .page{ padding:26px; max-width:1400px; margin:0 auto; }
 .menu-toggle{ display:none; }
 
-@media (max-width:960px){
+@media (max-width:1024px), (hover:none) and (pointer:coarse){
   .sidebar{ transform:translateX(-110%); z-index:250; }
   html[dir="rtl"] .sidebar{ transform:translateX(110%); }
   .sidebar.open{ transform:none; }
   .main{ margin-inline-start:0 !important; }
-  .menu-toggle{ display:flex; }
+  .menu-toggle{ display:flex !important; }
   .page{ padding:16px; }
   .topbar{ height:auto; min-height:var(--topbar-h); flex-wrap:wrap; padding:10px 14px; overflow-x:visible; }
   .topbar > div:first-child{ flex-shrink:0; }

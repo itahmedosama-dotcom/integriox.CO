@@ -241,6 +241,18 @@ const UI = (function(){
   function ltrToken(text){
     return '\u2066' + text + '\u2069';
   }
+  // Tries each URL in order until one script loads successfully — some
+  // networks/ad-blockers block a specific CDN (cdnjs in particular has
+  // been reported blocked for at least one deployment), so falling back
+  // to a different CDN host meaningfully improves real-world reliability.
+  function loadScriptWithFallback(urls){
+    return urls.reduce((p, url) => p.catch(()=> new Promise((resolve, reject)=>{
+      const s = document.createElement('script');
+      s.src = url;
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    })), Promise.reject());
+  }
   function fmtDate(d){
     if(!d) return '—';
     try{
@@ -299,5 +311,5 @@ const UI = (function(){
     };
   }
 
-  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, resizeImageFile, fmtMoney, fmtDate, ltrToken, initials, avatarHtml, SignaturePad };
+  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, resizeImageFile, fmtMoney, fmtDate, ltrToken, initials, avatarHtml, SignaturePad, loadScriptWithFallback };
 })();
