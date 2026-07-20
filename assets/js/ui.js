@@ -245,35 +245,21 @@ const UI = (function(){
   // networks/ad-blockers block a specific CDN (cdnjs in particular has
   // been reported blocked for at least one deployment), so falling back
   // to a different CDN host meaningfully improves real-world reliability.
-  // Shows a small choice popup for sending a WhatsApp message — some
-  // people only have WhatsApp Web logged in, others only have the app on
-  // their phone, so let them pick instead of guessing. Also offers a
-  // copy-link fallback in case a popup blocker silently swallows
-  // window.open() (happens on some browsers/devices).
-  // `text` must already be URI-encoded (same encoded value works for both URL schemes).
-  function waChoice(phone, text){
-    const webUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${text}`;
-    const appUrl = `https://wa.me/${phone}?text=${text}`;
-    const overlay = openModal(`
-      <div class="modal-head"><h3 data-i18n="wa_choice_title"></h3><button type="button" class="close-x" id="waClose">&times;</button></div>
-      <div class="modal-body" style="display:flex; flex-direction:column; gap:10px;">
-        <div style="display:flex; gap:8px;">
-          <button type="button" class="btn btn-primary" id="waWebBtn" style="flex:1;">💻 <span data-i18n="wa_open_web"></span></button>
-          <button type="button" class="btn btn-outline btn-sm" id="waWebCopy" title="Copy link">📋</button>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button type="button" class="btn btn-outline" id="waAppBtn" style="flex:1;">📱 <span data-i18n="wa_open_app"></span></button>
-          <button type="button" class="btn btn-outline btn-sm" id="waAppCopy" title="Copy link">📋</button>
-        </div>
-        <p class="hint" style="margin-top:4px;" data-i18n="wa_choice_hint"></p>
-      </div>
-    `);
-    I18N.apply(overlay);
-    overlay.querySelector('#waClose').addEventListener('click', closeModal);
-    overlay.querySelector('#waWebBtn').addEventListener('click', ()=>{ window.open(webUrl, '_blank', 'noopener'); });
-    overlay.querySelector('#waAppBtn').addEventListener('click', ()=>{ window.open(appUrl, '_blank', 'noopener'); });
-    overlay.querySelector('#waWebCopy').addEventListener('click', ()=>{ navigator.clipboard.writeText(webUrl).catch(()=>{}); toast(I18N.t('link_copied'), 'success'); });
-    overlay.querySelector('#waAppCopy').addEventListener('click', ()=>{ navigator.clipboard.writeText(appUrl).catch(()=>{}); toast(I18N.t('link_copied'), 'success'); });
+  // Opens WhatsApp with the right link for the current device — the app
+  // link (wa.me) on phones/tablets, WhatsApp Web on desktop — with no
+  // extra "which one?" screen. Falls back to copying the link (with a
+  // toast) if a popup blocker silently swallows window.open().
+  // `text` must already be URI-encoded.
+  function sendWhatsApp(phone, text){
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const url = isMobile
+      ? `https://wa.me/${phone}?text=${text}`
+      : `https://web.whatsapp.com/send?phone=${phone}&text=${text}`;
+    const win = window.open(url, '_blank', 'noopener');
+    if(!win || win.closed){
+      navigator.clipboard.writeText(url).catch(()=>{});
+      toast(I18N.t('wa_popup_blocked_copied'), 'warning');
+    }
   }
   function loadScriptWithFallback(urls){
     return urls.reduce((p, url) => p.catch(()=> new Promise((resolve, reject)=>{
@@ -341,5 +327,5 @@ const UI = (function(){
     };
   }
 
-  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, resizeImageFile, fmtMoney, fmtDate, ltrToken, initials, avatarHtml, SignaturePad, loadScriptWithFallback, waChoice };
+  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, resizeImageFile, fmtMoney, fmtDate, ltrToken, initials, avatarHtml, SignaturePad, loadScriptWithFallback, sendWhatsApp };
 })();
