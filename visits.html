@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191t">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191u">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191t"></script>
-<script src="assets/js/lists.js?v=202607191t"></script>
-<script src="assets/js/config.js?v=202607191t"></script>
-<script src="assets/js/db.js?v=202607191t"></script>
-<script src="assets/js/billing.js?v=202607191t"></script>
-<script src="assets/js/auth.js?v=202607191t"></script>
-<script src="assets/js/ui.js?v=202607191t"></script>
-<script src="assets/js/layout.js?v=202607191t"></script>
+<script src="assets/js/i18n.js?v=202607191u"></script>
+<script src="assets/js/lists.js?v=202607191u"></script>
+<script src="assets/js/config.js?v=202607191u"></script>
+<script src="assets/js/db.js?v=202607191u"></script>
+<script src="assets/js/billing.js?v=202607191u"></script>
+<script src="assets/js/auth.js?v=202607191u"></script>
+<script src="assets/js/ui.js?v=202607191u"></script>
+<script src="assets/js/layout.js?v=202607191u"></script>
 <script>
 const ctx = LAYOUT.render('visits');
 if(ctx){
@@ -35,6 +35,10 @@ if(ctx){
 
   const statusBadge = { requested:'badge-danger', scheduled:'badge-info', ongoing:'badge-warning', done:'badge-success', cancelled:'badge-mute' };
   const typeLabelMap = { periodic:'issue_periodic', fault:'issue_fault', urgent:'issue_urgent' };
+  // Guards against corrupted time values (e.g. a record round-tripped
+  // through an Excel export/import can end up with a full ISO datetime
+  // instead of "HH:MM") — only show it if it actually looks like a time.
+  function safeTime(t){ return /^\d{1,2}:\d{2}$/.test(t||'') ? t : ''; }
 
   function render(){
     let visits = DB.all('visits');
@@ -96,7 +100,7 @@ if(ctx){
           <td class="no-print"><input type="checkbox" class="rowCheck" value="${v.id}" style="width:auto;"></td>
           <td class="table-row-num">${idx+1}</td>
           <td><strong>${v.id}</strong></td>
-          <td>${UI.fmtDate(v.date)} <span class="text-muted">${v.time||''}</span></td>
+          <td>${UI.fmtDate(v.date)} <span class="text-muted">${safeTime(v.time)}</span></td>
           <td>${client?client.name:'—'}</td>
           <td>${tech?tech.name:`<span class="text-muted">—</span>`}</td>
           <td><span data-i18n="${typeLabelMap[v.type]||'issue_periodic'}"></span></td>
@@ -167,29 +171,56 @@ if(ctx){
         const tech = techsList.find(t=>t.id===v.techId);
         return `
         <div style="page-break-after:always; padding:24px; font-family:inherit;">
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--navy); padding-bottom:14px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--navy); padding-bottom:14px; margin-bottom:20px;">
             <div style="display:flex; align-items:center; gap:10px;">
-              <img src="assets/images/logo.png" style="width:40px;height:40px;">
-              <strong style="font-size:15px;">${settings.companyName||'Integriox'}</strong>
+              <img src="assets/images/logo.png" style="width:44px;height:44px;">
+              <div>
+                <div style="font-weight:800; font-size:16px; color:var(--navy);">${settings.companyName||'Integriox'}</div>
+                <div class="text-muted" style="font-size:11px;">${settings.companyAddress||''}</div>
+              </div>
             </div>
             <div style="text-align:end;">
-              <div style="font-weight:800;" data-i18n="visit_details_title"></div>
+              <div style="font-weight:800; font-size:16px;" data-i18n="visit_details_title"></div>
               <div class="text-muted" style="font-size:12px;">${v.id}</div>
             </div>
           </div>
+
+          <div class="grid grid-2" style="margin-bottom:22px;">
+            <div>
+              <h4 data-i18n="party_a" style="margin:0 0 8px;"></h4>
+              <div style="display:flex; align-items:flex-start; gap:10px;">
+                <img src="assets/images/logo.png" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">
+                <div style="font-size:13px; line-height:1.9;">
+                  ${settings.companyName||'Integriox'}<br>${settings.companyPhone||''}<br>${settings.companyEmail||''}
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 data-i18n="party_b" style="margin:0 0 8px;"></h4>
+              <div style="display:flex; align-items:flex-start; gap:10px;">
+                ${client && client.logo ? `<img src="${client.logo}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex-shrink:0;">` : ''}
+                <div style="font-size:13px; line-height:1.9;">
+                  <strong>${client?client.name:'—'}</strong><br>${client?(client.phone||''):''}<br>${client?(client.address||''):''}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="grid grid-3" style="margin-bottom:16px;">
-            <div><div class="text-muted" style="font-size:11px;" data-i18n="visit_date"></div><div style="font-weight:700;">${UI.fmtDate(v.date)} ${v.time||''}</div></div>
-            <div><div class="text-muted" style="font-size:11px;" data-i18n="contract_client"></div><div style="font-weight:700;">${client?client.name:'—'}</div></div>
+            <div><div class="text-muted" style="font-size:11px;" data-i18n="visit_date"></div><div style="font-weight:700;">${UI.fmtDate(v.date)} ${safeTime(v.time)}</div></div>
             <div><div class="text-muted" style="font-size:11px;" data-i18n="visit_technician"></div><div style="font-weight:700;">${tech?tech.name:'—'}</div></div>
+            <div><div class="text-muted" style="font-size:11px;" data-i18n="invoice_contract"></div><div style="font-weight:700;">${v.contractId||'—'}</div></div>
             <div><div class="text-muted" style="font-size:11px;" data-i18n="visit_type"></div><div style="font-weight:700;" data-i18n="${typeLabelMap[v.type]||'issue_periodic'}"></div></div>
             <div><div class="text-muted" style="font-size:11px;" data-i18n="visit_status"></div><div style="font-weight:700;" data-i18n="visit_${v.status}"></div></div>
-            <div><div class="text-muted" style="font-size:11px;" data-i18n="invoice_contract"></div><div style="font-weight:700;">${v.contractId||'—'}</div></div>
           </div>
+
           <div class="text-muted" style="font-size:11px;" data-i18n="visit_description"></div>
-          <div style="margin-bottom:14px;">${v.description||'—'}</div>
+          <div style="margin-bottom:14px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; min-height:40px;">${v.description||'—'}</div>
           ${v.contactName || v.contactPhone ? `
           <div class="text-muted" style="font-size:11px;" data-i18n="visit_contact"></div>
-          <div>${v.contactName||''} ${v.contactPhone||''}</div>` : ''}
+          <div style="margin-bottom:6px;">${v.contactName||''} ${v.contactPhone||''}</div>` : ''}
+
+          ${settings.companyStamp ? `<div style="display:flex; justify-content:center; margin-top:20px;"><img src="${settings.companyStamp}" style="width:90px;height:90px;object-fit:contain;" alt="stamp"></div>` : ''}
         </div>`;
       }).join('');
       I18N.apply(area);
@@ -212,7 +243,7 @@ if(ctx){
           <div class="field"><label data-i18n="visit_technician"></label><div>${tech?tech.name:'—'}</div></div>
         </div>
         <div class="field-row">
-          <div class="field"><label data-i18n="visit_date"></label><div>${UI.fmtDate(v.date)} ${v.time||''}</div></div>
+          <div class="field"><label data-i18n="visit_date"></label><div>${UI.fmtDate(v.date)} ${safeTime(v.time)}</div></div>
           <div class="field"><label data-i18n="visit_type"></label><div data-i18n="${typeLabelMap[v.type]||'issue_periodic'}"></div></div>
         </div>
         <div class="field"><label data-i18n="issue_desc"></label><div>${v.description||'—'}</div></div>
