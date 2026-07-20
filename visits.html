@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191ac">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191ad">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191ac"></script>
-<script src="assets/js/lists.js?v=202607191ac"></script>
-<script src="assets/js/config.js?v=202607191ac"></script>
-<script src="assets/js/db.js?v=202607191ac"></script>
-<script src="assets/js/billing.js?v=202607191ac"></script>
-<script src="assets/js/auth.js?v=202607191ac"></script>
-<script src="assets/js/ui.js?v=202607191ac"></script>
-<script src="assets/js/layout.js?v=202607191ac"></script>
+<script src="assets/js/i18n.js?v=202607191ad"></script>
+<script src="assets/js/lists.js?v=202607191ad"></script>
+<script src="assets/js/config.js?v=202607191ad"></script>
+<script src="assets/js/db.js?v=202607191ad"></script>
+<script src="assets/js/billing.js?v=202607191ad"></script>
+<script src="assets/js/auth.js?v=202607191ad"></script>
+<script src="assets/js/ui.js?v=202607191ad"></script>
+<script src="assets/js/layout.js?v=202607191ad"></script>
 <script>
 const ctx = LAYOUT.render('visits');
 if(ctx){
@@ -248,6 +248,18 @@ if(ctx){
           <div class="text-muted" style="font-size:11px;" data-i18n="visit_contact"></div>
           <div style="margin-bottom:6px;">${v.contactName||''} ${v.contactPhone||''}</div>` : ''}
 
+          ${(v.techSignature && v.techSignature.length>1000) || (v.clientSignature && v.clientSignature.length>1000) ? `
+          <div class="grid grid-2" style="margin-top:20px;">
+            <div>
+              <div class="text-muted" style="font-size:11px; margin-bottom:6px;" data-i18n="tech_signature"></div>
+              ${v.techSignature && v.techSignature.length>1000 ? `<img src="${v.techSignature}" style="max-height:80px;">` : ''}
+            </div>
+            <div>
+              <div class="text-muted" style="font-size:11px; margin-bottom:6px;" data-i18n="client_signature"></div>
+              ${v.clientSignature && v.clientSignature.length>1000 ? `<img src="${v.clientSignature}" style="max-height:80px;">` : ''}
+            </div>
+          </div>` : ''}
+
           ${settings.companyStamp ? `<div style="display:flex; justify-content:center; margin-top:20px;"><img src="${settings.companyStamp}" style="width:90px;height:90px;object-fit:contain;" alt="stamp"></div>` : ''}
         </div>`;
       }).join('');
@@ -265,11 +277,23 @@ if(ctx){
   }
 
   function openCompleteReportModal(v){
+    const hasValidTechSig = !!(v.techSignature && v.techSignature.length > 1000);
     const overlay = UI.openModal(`
       <div class="modal-head"><h3 data-i18n="visit_complete_title"></h3><button type="button" class="close-x" id="mClose">&times;</button></div>
       <div class="modal-body">
         <p class="hint" style="margin-bottom:10px;" data-i18n="visit_complete_hint"></p>
         <div class="field"><label data-i18n="visit_report"></label><textarea id="fReport" style="min-height:110px;">${v.report||''}</textarea></div>
+        <div class="field">
+          <label data-i18n="tech_signature"></label>
+          ${hasValidTechSig ? `
+            <img id="techSigImg" src="${v.techSignature}" style="max-height:100px; border:1px solid var(--line); border-radius:8px; padding:6px; background:#fff;">
+          ` : `
+            <canvas id="techSigCanvas" class="signature-pad" width="500" height="130" style="width:100%; height:110px; border:1.5px dashed var(--line); border-radius:8px;"></canvas>
+            <div class="row-actions" style="margin-top:6px;">
+              <button type="button" class="btn btn-sm btn-outline" id="clearTechSig" data-i18n="clear_signature"></button>
+            </div>
+          `}
+        </div>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
@@ -277,11 +301,21 @@ if(ctx){
       </div>
     `);
     I18N.apply(overlay);
+    let techPad = null;
+    if(!hasValidTechSig){
+      const canvas = overlay.querySelector('#techSigCanvas');
+      techPad = UI.SignaturePad(canvas);
+      overlay.querySelector('#clearTechSig').addEventListener('click', ()=>techPad.clear());
+    }
     overlay.querySelector('#mClose').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mCancel').addEventListener('click', UI.closeModal);
     overlay.querySelector('#mSave').addEventListener('click', ()=>{
       const report = overlay.querySelector('#fReport').value.trim();
-      DB.update('visits', v.id, { status:'done', report, completedAt: DB.todayISO() });
+      const patch = { status:'done', report, completedAt: DB.todayISO() };
+      if(techPad && !techPad.isEmpty()){
+        patch.techSignature = techPad.toDataURL();
+      }
+      DB.update('visits', v.id, patch);
       DB.logActivity('تم إنهاء الزيارة ' + v.id + ' مع كتابة تقرير', 'Visit completed with report ' + v.id, 'visit');
       UI.closeModal();
       UI.toast(I18N.t('saved_ok'), 'success');
@@ -323,6 +357,11 @@ if(ctx){
           return src ? `<a href="${src}" target="_blank" rel="noopener"><img src="${src}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--line);"></a>` : '';
         }).join('')}</div></div>` : ''}
         ${v.report ? `<div class="field"><label data-i18n="visit_report"></label><div style="white-space:pre-wrap;">${v.report}</div></div>` : ''}
+        ${(v.techSignature && v.techSignature.length>1000) || (v.clientSignature && v.clientSignature.length>1000) ? `
+        <div class="field-row">
+          ${v.techSignature && v.techSignature.length>1000 ? `<div class="field"><label data-i18n="tech_signature"></label><img src="${v.techSignature}" style="max-height:80px; border:1px solid var(--line); border-radius:8px; padding:6px; background:#fff;"></div>` : ''}
+          ${v.clientSignature && v.clientSignature.length>1000 ? `<div class="field"><label data-i18n="client_signature"></label><img src="${v.clientSignature}" style="max-height:80px; border:1px solid var(--line); border-radius:8px; padding:6px; background:#fff;"></div>` : ''}
+        </div>` : ''}
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-primary" id="mClose2" data-i18n="close"></button>
