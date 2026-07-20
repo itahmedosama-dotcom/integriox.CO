@@ -247,19 +247,33 @@ const UI = (function(){
   // to a different CDN host meaningfully improves real-world reliability.
   // Shows a small choice popup for sending a WhatsApp message — some
   // people only have WhatsApp Web logged in, others only have the app on
-  // their phone, so let them pick instead of guessing.
+  // their phone, so let them pick instead of guessing. Also offers a
+  // copy-link fallback in case a popup blocker silently swallows
+  // window.open() (happens on some browsers/devices).
   // `text` must already be URI-encoded (same encoded value works for both URL schemes).
   function waChoice(phone, text){
+    const webUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${text}`;
+    const appUrl = `https://wa.me/${phone}?text=${text}`;
     const overlay = openModal(`
       <div class="modal-head"><h3 data-i18n="wa_choice_title"></h3><button type="button" class="close-x" id="waClose">&times;</button></div>
       <div class="modal-body" style="display:flex; flex-direction:column; gap:10px;">
-        <a class="btn btn-primary" href="https://web.whatsapp.com/send?phone=${phone}&text=${text}" target="_blank" rel="noopener" id="waWebBtn">💻 <span data-i18n="wa_open_web"></span></a>
-        <a class="btn btn-outline" href="https://wa.me/${phone}?text=${text}" target="_blank" rel="noopener" id="waAppBtn">📱 <span data-i18n="wa_open_app"></span></a>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-primary" id="waWebBtn" style="flex:1;">💻 <span data-i18n="wa_open_web"></span></button>
+          <button type="button" class="btn btn-outline btn-sm" id="waWebCopy" title="Copy link">📋</button>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-outline" id="waAppBtn" style="flex:1;">📱 <span data-i18n="wa_open_app"></span></button>
+          <button type="button" class="btn btn-outline btn-sm" id="waAppCopy" title="Copy link">📋</button>
+        </div>
+        <p class="hint" style="margin-top:4px;" data-i18n="wa_choice_hint"></p>
       </div>
     `);
     I18N.apply(overlay);
     overlay.querySelector('#waClose').addEventListener('click', closeModal);
-    overlay.querySelectorAll('a').forEach(a=> a.addEventListener('click', ()=> setTimeout(closeModal, 150)));
+    overlay.querySelector('#waWebBtn').addEventListener('click', ()=>{ window.open(webUrl, '_blank', 'noopener'); });
+    overlay.querySelector('#waAppBtn').addEventListener('click', ()=>{ window.open(appUrl, '_blank', 'noopener'); });
+    overlay.querySelector('#waWebCopy').addEventListener('click', ()=>{ navigator.clipboard.writeText(webUrl).catch(()=>{}); toast(I18N.t('link_copied'), 'success'); });
+    overlay.querySelector('#waAppCopy').addEventListener('click', ()=>{ navigator.clipboard.writeText(appUrl).catch(()=>{}); toast(I18N.t('link_copied'), 'success'); });
   }
   function loadScriptWithFallback(urls){
     return urls.reduce((p, url) => p.catch(()=> new Promise((resolve, reject)=>{
