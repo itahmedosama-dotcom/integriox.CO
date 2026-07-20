@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191ah">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191ai">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191ah"></script>
-<script src="assets/js/lists.js?v=202607191ah"></script>
-<script src="assets/js/config.js?v=202607191ah"></script>
-<script src="assets/js/db.js?v=202607191ah"></script>
-<script src="assets/js/billing.js?v=202607191ah"></script>
-<script src="assets/js/auth.js?v=202607191ah"></script>
-<script src="assets/js/ui.js?v=202607191ah"></script>
-<script src="assets/js/layout.js?v=202607191ah"></script>
+<script src="assets/js/i18n.js?v=202607191ai"></script>
+<script src="assets/js/lists.js?v=202607191ai"></script>
+<script src="assets/js/config.js?v=202607191ai"></script>
+<script src="assets/js/db.js?v=202607191ai"></script>
+<script src="assets/js/billing.js?v=202607191ai"></script>
+<script src="assets/js/auth.js?v=202607191ai"></script>
+<script src="assets/js/ui.js?v=202607191ai"></script>
+<script src="assets/js/layout.js?v=202607191ai"></script>
 <script>
 const ctx = LAYOUT.render('settings');
 if(ctx){
@@ -196,12 +196,16 @@ if(ctx){
           <div class="card-header"><h3 class="card-title" data-i18n="backup_title"></h3></div>
           <p class="hint" style="margin-bottom:8px;" data-i18n="backup_desc"></p>
           <p class="hint" style="color:var(--danger); margin-bottom:16px;" data-i18n="backup_warning"></p>
-          <button type="button" class="btn btn-primary" id="downloadBackup" data-i18n="backup_download_btn"></button>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary" id="downloadBackup" data-i18n="backup_download_btn"></button>
+            <button type="button" class="btn btn-outline btn-sm" id="downloadBackupJson" data-i18n="backup_download_json_btn"></button>
+          </div>
+          <p class="hint" style="margin-top:8px;" data-i18n="backup_json_fallback_hint"></p>
         </div>
         <div class="card" style="max-width:680px; margin-bottom:20px;">
           <div class="card-header"><h3 class="card-title" data-i18n="backup_restore_title"></h3></div>
           <p class="hint" style="margin-bottom:14px;" data-i18n="backup_restore_desc"></p>
-          <input type="file" id="restoreFile" accept=".json" class="hidden">
+          <input type="file" id="restoreFile" accept=".xlsx,.json" class="hidden">
           <button type="button" class="btn btn-outline" id="restoreBackupBtn" data-i18n="backup_restore_btn"></button>
         </div>
 
@@ -449,6 +453,28 @@ if(ctx){
 
     /* ---------- backup: export every collection to a single .xlsx ---------- */
     contentEl.querySelector('#downloadBackup').addEventListener('click', ()=>{
+      loadSheetJS().then(()=>{
+        const data = DB.load();
+        const wb = XLSX.utils.book_new();
+        ['users','clients','technicians','contracts','visits','payments','invoices','complaints','jobOrders','activity'].forEach(col=>{
+          const rows = (data[col]||[]).map(r=>{
+            const flat = {};
+            Object.keys(r).forEach(k=> flat[k] = typeof r[k]==='object' ? JSON.stringify(r[k]) : r[k]);
+            return flat;
+          });
+          const ws = XLSX.utils.json_to_sheet(rows);
+          XLSX.utils.book_append_sheet(wb, ws, col);
+        });
+        const settingsRows = Object.keys(data.settings).map(k=>({ key:k, value: typeof data.settings[k]==='object' ? JSON.stringify(data.settings[k]) : data.settings[k] }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(settingsRows), 'settings');
+        XLSX.writeFile(wb, `integriox-backup-${DB.todayISO()}.xlsx`);
+        DB.logActivity('تم تحميل نسخة احتياطية (Excel)', 'Backup downloaded (Excel)', 'settings');
+      }).catch(()=>{
+        UI.toast(I18N.t('backup_lib_load_error'), 'error');
+      });
+    });
+
+    contentEl.querySelector('#downloadBackupJson').addEventListener('click', ()=>{
       try{
         const data = DB.load();
         const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
@@ -457,7 +483,7 @@ if(ctx){
         a.download = `integriox-backup-${DB.todayISO()}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
-        DB.logActivity('تم تحميل نسخة احتياطية', 'Backup downloaded', 'settings');
+        DB.logActivity('تم تحميل نسخة احتياطية (JSON)', 'Backup downloaded (JSON)', 'settings');
       }catch(err){
         UI.toast(I18N.t('backup_download_fail') + (err && err.message ? (': ' + err.message) : ''), 'error');
       }
@@ -470,24 +496,79 @@ if(ctx){
       const file = e.target.files[0];
       if(!file) return;
       if(!window.confirm(I18N.t('backup_restore_confirm'))){ e.target.value = ''; return; }
-      const reader = new FileReader();
-      reader.onload = (ev)=>{
-        try{
-          const newData = JSON.parse(ev.target.result);
-          if(!newData || typeof newData !== 'object' || !newData.settings){
-            throw new Error('not a valid Integriox backup file');
+      const isJson = /\.json$/i.test(file.name);
+
+      function applyRestoredData(newData){
+        DB.save(newData);
+        UI.toast(I18N.t('backup_restore_ok'), 'success');
+        DB.logActivity('تمت استعادة نسخة احتياطية', 'Backup restored', 'settings');
+        setTimeout(()=>window.location.reload(), 1200);
+      }
+
+      if(isJson){
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+          try{
+            const newData = JSON.parse(ev.target.result);
+            if(!newData || typeof newData !== 'object' || !newData.settings){
+              throw new Error('not a valid Integriox backup file');
+            }
+            applyRestoredData(newData);
+          }catch(err){
+            UI.toast(I18N.t('backup_restore_fail') + (err && err.message ? (': ' + err.message) : ''), 'error');
           }
-          DB.save(newData);
-          UI.toast(I18N.t('backup_restore_ok'), 'success');
-          DB.logActivity('تمت استعادة نسخة احتياطية', 'Backup restored', 'settings');
-          setTimeout(()=>window.location.reload(), 1200);
-        }catch(err){
-          UI.toast(I18N.t('backup_restore_fail') + (err && err.message ? (': ' + err.message) : ''), 'error');
-        }
-      };
-      reader.readAsText(file);
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+        return;
+      }
+
+      // .xlsx path
+      loadSheetJS().then(()=>{
+        const reader = new FileReader();
+        reader.onload = (ev)=>{
+          try{
+            const wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array' });
+            const fresh = DB.resetDemo(); // start from a clean seed, then overwrite
+            const newData = { settings: fresh.settings, users:[], clients:[], technicians:[], contracts:[], visits:[], payments:[], invoices:[], complaints:[], jobOrders:[], activity:[] };
+            // Excel silently turns numeric-looking cells (e.g. a phone
+            // number, or "10:00") into JS numbers on restore — force these
+            // specific fields back to text so anything expecting a string
+            // (like building a WhatsApp link) doesn't break.
+            const forceStringFields = ['phone','clientPhone','contactPhone','techPhone','time','username','id'];
+            function sanitizeRow(row){
+              forceStringFields.forEach(k=>{ if(row[k] !== undefined && row[k] !== null) row[k] = String(row[k]); });
+              return row;
+            }
+            ['users','clients','technicians','contracts','visits','payments','invoices','complaints','jobOrders','activity'].forEach(col=>{
+              const sheet = wb.Sheets[col];
+              if(!sheet) return;
+              newData[col] = XLSX.utils.sheet_to_json(sheet).map(sanitizeRow);
+            });
+            if(wb.Sheets['settings']){
+              const rows = XLSX.utils.sheet_to_json(wb.Sheets['settings']);
+              rows.forEach(r=>{ if(r.key) newData.settings[r.key] = r.value; });
+            }
+            applyRestoredData(newData);
+          }catch(err){
+            UI.toast(I18N.t('backup_restore_fail') + (err && err.message ? (': ' + err.message) : ''), 'error');
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }).catch(()=>{
+        UI.toast(I18N.t('backup_lib_load_error'), 'error');
+      });
       e.target.value = '';
     });
+
+    function loadSheetJS(){
+      if(window.XLSX) return Promise.resolve();
+      return UI.loadScriptWithFallback([
+        'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+        'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+        'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
+      ]);
+    }
 
     /* ---------- danger zone ---------- */
     contentEl.querySelector('#deleteCollectionBtn').addEventListener('click', ()=>{
