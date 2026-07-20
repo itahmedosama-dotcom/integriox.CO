@@ -307,13 +307,12 @@ html[dir="rtl"] .main{ margin-right:var(--sidebar-w); }
 .empty-state{ text-align:center; padding:60px 20px; color:var(--ink-mute); }
 .empty-state svg{ width:56px; height:56px; margin-bottom:14px; opacity:.5; }
 .session-timer{
-  position:fixed; top:78px; left:50%; transform:translateX(-50%); z-index:35;
-  background:var(--surface); border:1px solid var(--line); border-radius:99px;
-  padding:6px 16px; font-size:12px; font-weight:600; color:var(--ink-mute);
-  box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:6px;
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--sky-50); border:1px solid var(--line); border-radius:99px;
+  padding:6px 14px; font-size:12px; font-weight:600; color:var(--ink-mute); white-space:nowrap;
 }
 .session-timer strong{ color:var(--ink); }
-@media (max-width:960px){ .session-timer{ top:auto; bottom:80px; } }
+@media (max-width:720px){ .session-timer span:not([dir]){ display:none; } }
 
 .toast-wrap{
   position:fixed; bottom:26px; left:50%; transform:translateX(-50%); z-index:400;

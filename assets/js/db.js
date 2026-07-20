@@ -202,7 +202,19 @@ const DB = (function(){
           settingsChanged = true;
         }
       }
-      if(settingsChanged) localStorage.setItem(KEY, JSON.stringify(cache));
+      // One-time migration: standardize the default session duration to
+      // 15 minutes — covers users saved with the old 60-minute default
+      // and users who never had this field at all.
+      let usersChanged = false;
+      if(Array.isArray(cache.users)){
+        cache.users.forEach(u=>{
+          if(u.sessionMinutes === undefined || u.sessionMinutes === null || Number(u.sessionMinutes) === 60){
+            u.sessionMinutes = 15;
+            usersChanged = true;
+          }
+        });
+      }
+      if(settingsChanged || usersChanged) localStorage.setItem(KEY, JSON.stringify(cache));
     }
     // keep MODE in sync with whatever sheet URL is currently active
     // (site-wide config.js, or a per-device local override saved in settings)

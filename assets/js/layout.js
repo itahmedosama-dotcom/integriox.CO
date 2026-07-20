@@ -84,6 +84,7 @@ const LAYOUT = (function(){
           <div class="topbar-right">
             <a class="quick-action-btn no-print" id="quickActionBtn2" href="job-orders.html?new=1" style="display:none;"></a>
             <a class="quick-action-btn no-print" id="quickActionBtn" href="#"></a>
+            <span id="sessionTimerSlot" class="no-print"></span>
             <div class="lang-switch">
               <button data-lang="ar">AR</button>
               <button data-lang="en">EN</button>
@@ -145,16 +146,20 @@ const LAYOUT = (function(){
     return { user, contentEl: shell.querySelector('#pageContent') };
   }
 
-  // Small, fixed, top-center pill showing remaining session time —
-  // updates every second and logs the person out automatically the
-  // moment it reaches zero. Session length is a per-user setting
-  // (Settings → Users), defaulting to 60 minutes if not configured.
+  // Small pill in the topbar showing remaining session time — updates
+  // every second and logs the person out automatically at zero. Any user
+  // activity (click, keypress, scroll, touch, mouse move) resets it back
+  // to the full duration, so it's an idle timeout, not a fixed countdown
+  // from login. Session length is a per-user setting (Settings → Users),
+  // defaulting to 15 minutes if not configured.
   function mountSessionTimer(shell){
-    const msRemaining = AUTH.sessionMsRemaining();
-    if(msRemaining === null) return; // pre-existing session with no tracked expiry — skip silently
-    const el = document.createElement('div');
-    el.className = 'session-timer no-print';
-    shell.appendChild(el);
+    const slot = shell.querySelector('#sessionTimerSlot');
+    if(!slot) return;
+    if(AUTH.sessionMsRemaining() === null) return; // pre-existing session with no tracked expiry — skip silently
+    const el = document.createElement('span');
+    el.className = 'session-timer';
+    slot.appendChild(el);
+
     function fmt(ms){
       const totalSec = Math.max(0, Math.floor(ms/1000));
       const m = Math.floor(totalSec/60), s = totalSec%60;
@@ -174,6 +179,20 @@ const LAYOUT = (function(){
     }
     tick();
     const timerId = setInterval(tick, 1000);
+
+    // Reset on activity, throttled so we're not hammering localStorage on
+    // every single mousemove/scroll event.
+    let lastExtend = Date.now();
+    function onActivity(){
+      const now = Date.now();
+      if(now - lastExtend < 5000) return;
+      lastExtend = now;
+      AUTH.extendSession();
+      tick();
+    }
+    ['mousemove','keydown','click','scroll','touchstart'].forEach(evt=>
+      document.addEventListener(evt, onActivity, { passive:true })
+    );
   }
 
   function mountQuickAction(shell, user){

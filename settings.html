@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191af">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191ah">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191af"></script>
-<script src="assets/js/lists.js?v=202607191af"></script>
-<script src="assets/js/config.js?v=202607191af"></script>
-<script src="assets/js/db.js?v=202607191af"></script>
-<script src="assets/js/billing.js?v=202607191af"></script>
-<script src="assets/js/auth.js?v=202607191af"></script>
-<script src="assets/js/ui.js?v=202607191af"></script>
-<script src="assets/js/layout.js?v=202607191af"></script>
+<script src="assets/js/i18n.js?v=202607191ah"></script>
+<script src="assets/js/lists.js?v=202607191ah"></script>
+<script src="assets/js/config.js?v=202607191ah"></script>
+<script src="assets/js/db.js?v=202607191ah"></script>
+<script src="assets/js/billing.js?v=202607191ah"></script>
+<script src="assets/js/auth.js?v=202607191ah"></script>
+<script src="assets/js/ui.js?v=202607191ah"></script>
+<script src="assets/js/layout.js?v=202607191ah"></script>
 <script>
 const ctx = LAYOUT.render('settings');
 if(ctx){
@@ -184,7 +184,6 @@ if(ctx){
           <div style="display:flex; flex-wrap:wrap; gap:10px;">
             <button type="button" class="btn btn-danger" id="cancelPreview" data-i18n="integration_cancel_preview" ${settings.sheetUrlIsLocalOverride ? '' : 'style="display:none;"'}></button>
             <button type="button" class="btn btn-outline" id="testConnection" data-i18n="integration_test_connection"></button>
-            <button type="button" class="btn btn-outline" id="syncNowBtn" data-i18n="integration_sync_now"></button>
             <button type="button" class="btn btn-outline" id="pullFromSheetBtn" data-i18n="integration_pull_now"></button>
             <button type="button" class="btn btn-outline" id="downloadConfig" data-i18n="integration_download_config"></button>
             <button type="button" class="btn btn-primary" id="saveSheet" data-i18n="integration_apply_local"></button>
@@ -202,7 +201,7 @@ if(ctx){
         <div class="card" style="max-width:680px; margin-bottom:20px;">
           <div class="card-header"><h3 class="card-title" data-i18n="backup_restore_title"></h3></div>
           <p class="hint" style="margin-bottom:14px;" data-i18n="backup_restore_desc"></p>
-          <input type="file" id="restoreFile" accept=".xlsx" class="hidden">
+          <input type="file" id="restoreFile" accept=".json" class="hidden">
           <button type="button" class="btn btn-outline" id="restoreBackupBtn" data-i18n="backup_restore_btn"></button>
         </div>
 
@@ -391,19 +390,6 @@ if(ctx){
       });
     }
 
-    contentEl.querySelector('#syncNowBtn').addEventListener('click', async (e)=>{
-      const btn = e.currentTarget; const original = btn.textContent;
-      btn.disabled = true; btn.textContent = I18N.t('loading');
-      try{
-        await DB.syncNow();
-        UI.toast(I18N.t('integration_sync_ok'), 'success');
-        DB.logActivity('تمت مزامنة كل البيانات يدويًا مع جوجل شيت', 'Manual full sync to Google Sheet', 'settings');
-      }catch(err){
-        UI.toast(I18N.t('integration_sync_fail') + (err && err.message ? ' — ' + err.message : ''), 'error');
-      }
-      btn.disabled = false; btn.textContent = original;
-    });
-
     contentEl.querySelector('#pullFromSheetBtn').addEventListener('click', ()=>{
       UI.confirmAction(I18N.t('integration_pull_confirm'), async ()=>{
         const btn = contentEl.querySelector('#pullFromSheetBtn'); const original = btn.textContent;
@@ -463,25 +449,18 @@ if(ctx){
 
     /* ---------- backup: export every collection to a single .xlsx ---------- */
     contentEl.querySelector('#downloadBackup').addEventListener('click', ()=>{
-      loadSheetJS().then(()=>{
+      try{
         const data = DB.load();
-        const wb = XLSX.utils.book_new();
-        ['users','clients','technicians','contracts','visits','payments','invoices','complaints','jobOrders','activity'].forEach(col=>{
-          const rows = (data[col]||[]).map(r=>{
-            const flat = {};
-            Object.keys(r).forEach(k=> flat[k] = typeof r[k]==='object' ? JSON.stringify(r[k]) : r[k]);
-            return flat;
-          });
-          const ws = XLSX.utils.json_to_sheet(rows);
-          XLSX.utils.book_append_sheet(wb, ws, col);
-        });
-        const settingsRows = Object.keys(data.settings).map(k=>({ key:k, value: typeof data.settings[k]==='object' ? JSON.stringify(data.settings[k]) : data.settings[k] }));
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(settingsRows), 'settings');
-        XLSX.writeFile(wb, `integriox-backup-${DB.todayISO()}.xlsx`);
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `integriox-backup-${DB.todayISO()}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
         DB.logActivity('تم تحميل نسخة احتياطية', 'Backup downloaded', 'settings');
-      }).catch(()=>{
-        UI.toast(I18N.t('backup_lib_load_error'), 'error');
-      });
+      }catch(err){
+        UI.toast(I18N.t('backup_download_fail') + (err && err.message ? (': ' + err.message) : ''), 'error');
+      }
     });
 
     contentEl.querySelector('#restoreBackupBtn').addEventListener('click', ()=>{
@@ -491,54 +470,24 @@ if(ctx){
       const file = e.target.files[0];
       if(!file) return;
       if(!window.confirm(I18N.t('backup_restore_confirm'))){ e.target.value = ''; return; }
-      loadSheetJS().then(()=>{
-        const reader = new FileReader();
-        reader.onload = (ev)=>{
-          try{
-            const wb = XLSX.read(new Uint8Array(ev.target.result), { type:'array' });
-            const fresh = DB.resetDemo(); // start from a clean seed, then overwrite
-            const newData = { settings: fresh.settings, users:[], clients:[], technicians:[], contracts:[], visits:[], payments:[], invoices:[], complaints:[], jobOrders:[], activity:[] };
-            // Excel silently turns numeric-looking cells (e.g. a phone
-            // number, or "10:00") into JS numbers on restore — force these
-            // specific fields back to text so anything expecting a string
-            // (like building a WhatsApp link) doesn't break.
-            const forceStringFields = ['phone','clientPhone','contactPhone','techPhone','time','username','id'];
-            function sanitizeRow(row){
-              forceStringFields.forEach(k=>{ if(row[k] !== undefined && row[k] !== null) row[k] = String(row[k]); });
-              return row;
-            }
-            ['users','clients','technicians','contracts','visits','payments','invoices','complaints','jobOrders','activity'].forEach(col=>{
-              const sheet = wb.Sheets[col];
-              if(!sheet) return;
-              newData[col] = XLSX.utils.sheet_to_json(sheet).map(sanitizeRow);
-            });
-            if(wb.Sheets['settings']){
-              const rows = XLSX.utils.sheet_to_json(wb.Sheets['settings']);
-              rows.forEach(r=>{ if(r.key) newData.settings[r.key] = r.value; });
-            }
-            DB.save(newData);
-            UI.toast(I18N.t('backup_restore_ok'), 'success');
-            DB.logActivity('تمت استعادة نسخة احتياطية', 'Backup restored', 'settings');
-            setTimeout(()=>window.location.reload(), 1200);
-          }catch(err){
-            UI.toast(I18N.t('backup_restore_fail'), 'error');
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        try{
+          const newData = JSON.parse(ev.target.result);
+          if(!newData || typeof newData !== 'object' || !newData.settings){
+            throw new Error('not a valid Integriox backup file');
           }
-        };
-        reader.readAsArrayBuffer(file);
-      }).catch(()=>{
-        UI.toast(I18N.t('backup_lib_load_error'), 'error');
-      });
+          DB.save(newData);
+          UI.toast(I18N.t('backup_restore_ok'), 'success');
+          DB.logActivity('تمت استعادة نسخة احتياطية', 'Backup restored', 'settings');
+          setTimeout(()=>window.location.reload(), 1200);
+        }catch(err){
+          UI.toast(I18N.t('backup_restore_fail') + (err && err.message ? (': ' + err.message) : ''), 'error');
+        }
+      };
+      reader.readAsText(file);
       e.target.value = '';
     });
-
-    function loadSheetJS(){
-      if(window.XLSX) return Promise.resolve();
-      return UI.loadScriptWithFallback([
-        'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-        'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-        'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
-      ]);
-    }
 
     /* ---------- danger zone ---------- */
     contentEl.querySelector('#deleteCollectionBtn').addEventListener('click', ()=>{
@@ -749,7 +698,7 @@ if(ctx){
           </div>
           <div class="field">
             <label data-i18n="user_session_minutes"></label>
-            <input type="number" id="fSessionMinutes" min="5" value="${editing?(u.sessionMinutes||60):60}">
+            <input type="number" id="fSessionMinutes" min="5" value="${editing?(u.sessionMinutes||15):15}">
             <p class="hint" data-i18n="user_session_minutes_hint" style="margin-top:4px;"></p>
           </div>
         </div>
@@ -773,7 +722,7 @@ if(ctx){
         const role = overlay.querySelector('#fRole').value;
         const status = overlay.querySelector('#fStatus').value;
         const suspendAt = overlay.querySelector('#fSuspendAt').value || null;
-        const sessionMinutes = Number(overlay.querySelector('#fSessionMinutes').value) || 60;
+        const sessionMinutes = Number(overlay.querySelector('#fSessionMinutes').value) || 15;
         const canViewAllVisits = role==='technician' ? overlay.querySelector('#fCanViewAll').checked : false;
         if(!name || (!editing && !email)){ UI.toast(I18N.t('err_required'), 'error'); return; }
         if(username && DB.all('users').some(x=>x.id!==(u&&u.id) && (x.username||'').toLowerCase()===username.toLowerCase())){

@@ -30,7 +30,7 @@ const AUTH = (function(){
     if(!u || u.password!==password) return { ok:false, error:'err_login' };
     if(u.status === 'suspended') return { ok:false, error:'err_suspended' };
     if(u.status !== 'approved') return { ok:false, error:'err_pending' };
-    const sessionMinutes = Number(u.sessionMinutes) > 0 ? Number(u.sessionMinutes) : 60;
+    const sessionMinutes = Number(u.sessionMinutes) > 0 ? Number(u.sessionMinutes) : 15;
     localStorage.setItem(SKEY, JSON.stringify({ userId:u.id, expiresAt: Date.now() + sessionMinutes*60000 }));
     return { ok:true, user:u };
   }
@@ -105,11 +105,23 @@ const AUTH = (function(){
     return Math.max(0, s.expiresAt - Date.now());
   }
 
+  // Resets the session's expiry back to a full window from now — called
+  // on user activity so the timeout is idle-based (any interaction keeps
+  // the session alive) rather than a fixed countdown from login.
+  function extendSession(){
+    const s = getSession();
+    if(!s) return;
+    const u = currentUser();
+    const sessionMinutes = u && Number(u.sessionMinutes) > 0 ? Number(u.sessionMinutes) : 15;
+    s.expiresAt = Date.now() + sessionMinutes*60000;
+    localStorage.setItem(SKEY, JSON.stringify(s));
+  }
+
   function roleLabel(role){
     const map = { admin:{ar:'مدير النظام',en:'Administrator'}, client:{ar:'عميل',en:'Client'}, technician:{ar:'فني',en:'Technician'} };
     const lang = I18N.getLang();
     return (map[role] && map[role][lang]) || role;
   }
 
-  return { login, register, logout, currentUser, requireAuth, roleLabel, checkSuspensions, sessionMsRemaining, isSessionExpired };
+  return { login, register, logout, currentUser, requireAuth, roleLabel, checkSuspensions, sessionMsRemaining, isSessionExpired, extendSession };
 })();
