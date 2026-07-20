@@ -245,6 +245,22 @@ const UI = (function(){
   // networks/ad-blockers block a specific CDN (cdnjs in particular has
   // been reported blocked for at least one deployment), so falling back
   // to a different CDN host meaningfully improves real-world reliability.
+  // Shows a small choice popup for sending a WhatsApp message — some
+  // people only have WhatsApp Web logged in, others only have the app on
+  // their phone, so let them pick instead of guessing.
+  // `text` must already be URI-encoded (same encoded value works for both URL schemes).
+  function waChoice(phone, text){
+    const overlay = openModal(`
+      <div class="modal-head"><h3 data-i18n="wa_choice_title"></h3><button type="button" class="close-x" id="waClose">&times;</button></div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:10px;">
+        <a class="btn btn-primary" href="https://web.whatsapp.com/send?phone=${phone}&text=${text}" target="_blank" rel="noopener" id="waWebBtn">💻 <span data-i18n="wa_open_web"></span></a>
+        <a class="btn btn-outline" href="https://wa.me/${phone}?text=${text}" target="_blank" rel="noopener" id="waAppBtn">📱 <span data-i18n="wa_open_app"></span></a>
+      </div>
+    `);
+    I18N.apply(overlay);
+    overlay.querySelector('#waClose').addEventListener('click', closeModal);
+    overlay.querySelectorAll('a').forEach(a=> a.addEventListener('click', ()=> setTimeout(closeModal, 150)));
+  }
   function loadScriptWithFallback(urls){
     return urls.reduce((p, url) => p.catch(()=> new Promise((resolve, reject)=>{
       const s = document.createElement('script');
@@ -311,5 +327,5 @@ const UI = (function(){
     };
   }
 
-  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, resizeImageFile, fmtMoney, fmtDate, ltrToken, initials, avatarHtml, SignaturePad, loadScriptWithFallback };
+  return { toast, successPopup, mountFooter, mountWhatsapp, showInstallButton, makeCaptcha, openModal, closeModal, confirmAction, fileToDataURL, resizeImageFile, fmtMoney, fmtDate, ltrToken, initials, avatarHtml, SignaturePad, loadScriptWithFallback, waChoice };
 })();

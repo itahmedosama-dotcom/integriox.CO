@@ -103,6 +103,7 @@ const I18N = (function(){
       visit_complete_title: "إنهاء الزيارة", visit_complete_hint: "اكتب تقرير مختصر عن اللي تم عمله في الزيارة قبل تأكيد الإنهاء.", visit_report: "تقرير الزيارة",
       public_link_invalid_title: "الرابط غير صالح", public_link_invalid_desc: "هذا الرابط غير صحيح أو انتهت صلاحيته. تواصل مع الشركة للحصول على رابط جديد.",
       public_already_signed: "تم توقيع هذا العقد بالفعل ولا يمكن تعديل التوقيع.", public_confirm_signature: "تأكيد التوقيع",
+      wa_choice_title: "إرسال عبر واتساب", wa_open_web: "فتح في واتساب ويب", wa_open_app: "فتح في تطبيق واتساب",
       // payments
       payments: "المدفوعات", payments_sub: "تسجيل ومتابعة المدفوعات", add_payment: "تسجيل دفعة",
       payment_amount: "المبلغ", payment_method: "طريقة الدفع", method_bank: "تحويل بنكي",
@@ -392,6 +393,7 @@ const I18N = (function(){
       visit_complete_title: "Complete Visit", visit_complete_hint: "Write a short report on what was done during the visit before confirming completion.", visit_report: "Visit Report",
       public_link_invalid_title: "Invalid Link", public_link_invalid_desc: "This link is invalid or has expired. Contact the company for a new one.",
       public_already_signed: "This contract has already been signed and the signature can't be changed.", public_confirm_signature: "Confirm Signature",
+      wa_choice_title: "Send via WhatsApp", wa_open_web: "Open in WhatsApp Web", wa_open_app: "Open in WhatsApp app",
       payments: "Payments", payments_sub: "Record and track payments", add_payment: "Record Payment",
       payment_amount: "Amount", payment_method: "Payment method", method_bank: "Bank transfer",
       method_cash: "Cash", method_other: "Other", payment_date: "Payment date",
