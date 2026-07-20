@@ -30,7 +30,8 @@ const AUTH = (function(){
     if(!u || u.password!==password) return { ok:false, error:'err_login' };
     if(u.status === 'suspended') return { ok:false, error:'err_suspended' };
     if(u.status !== 'approved') return { ok:false, error:'err_pending' };
-    localStorage.setItem(SKEY, JSON.stringify({ userId:u.id }));
+    const sessionMinutes = Number(u.sessionMinutes) > 0 ? Number(u.sessionMinutes) : 60;
+    localStorage.setItem(SKEY, JSON.stringify({ userId:u.id, expiresAt: Date.now() + sessionMinutes*60000 }));
     return { ok:true, user:u };
   }
 
@@ -75,6 +76,7 @@ const AUTH = (function(){
   function requireAuth(){
     const u = currentUser();
     if(!u){ window.location.href = 'index.html'; return null; }
+    if(isSessionExpired()){ logout(); return null; }
     checkSuspensions();
     // Re-check status from fresh data when we can, but never force a
     // logout just because the fresh lookup came back empty (e.g. a
@@ -84,11 +86,30 @@ const AUTH = (function(){
     return fresh || u;
   }
 
+  function getSession(){
+    const raw = localStorage.getItem(SKEY);
+    if(!raw) return null;
+    try{ return JSON.parse(raw); }catch(e){ return null; }
+  }
+
+  function isSessionExpired(){
+    const s = getSession();
+    return !!(s && s.expiresAt && Date.now() > s.expiresAt);
+  }
+
+  // Milliseconds left in the current session, or null if there's no
+  // tracked expiry (e.g. a session created before this feature existed).
+  function sessionMsRemaining(){
+    const s = getSession();
+    if(!s || !s.expiresAt) return null;
+    return Math.max(0, s.expiresAt - Date.now());
+  }
+
   function roleLabel(role){
     const map = { admin:{ar:'مدير النظام',en:'Administrator'}, client:{ar:'عميل',en:'Client'}, technician:{ar:'فني',en:'Technician'} };
     const lang = I18N.getLang();
     return (map[role] && map[role][lang]) || role;
   }
 
-  return { login, register, logout, currentUser, requireAuth, roleLabel, checkSuspensions };
+  return { login, register, logout, currentUser, requireAuth, roleLabel, checkSuspensions, sessionMsRemaining, isSessionExpired };
 })();

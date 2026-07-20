@@ -141,7 +141,39 @@ const LAYOUT = (function(){
     shell.querySelector('#userChipBtn').addEventListener('click', ()=> openProfileModal(user));
     mountNotifications(shell, user);
     mountQuickAction(shell, user);
+    mountSessionTimer(shell);
     return { user, contentEl: shell.querySelector('#pageContent') };
+  }
+
+  // Small, fixed, top-center pill showing remaining session time —
+  // updates every second and logs the person out automatically the
+  // moment it reaches zero. Session length is a per-user setting
+  // (Settings → Users), defaulting to 60 minutes if not configured.
+  function mountSessionTimer(shell){
+    const msRemaining = AUTH.sessionMsRemaining();
+    if(msRemaining === null) return; // pre-existing session with no tracked expiry — skip silently
+    const el = document.createElement('div');
+    el.className = 'session-timer no-print';
+    shell.appendChild(el);
+    function fmt(ms){
+      const totalSec = Math.max(0, Math.floor(ms/1000));
+      const m = Math.floor(totalSec/60), s = totalSec%60;
+      return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    }
+    function tick(){
+      const left = AUTH.sessionMsRemaining();
+      if(left === null) return;
+      if(left <= 0){
+        clearInterval(timerId);
+        UI.toast(I18N.t('session_expired'), 'error');
+        setTimeout(()=> AUTH.logout(), 800);
+        return;
+      }
+      el.innerHTML = `⏳ <span data-i18n="session_time_left"></span> <strong dir="ltr">${fmt(left)}</strong>`;
+      I18N.apply(el);
+    }
+    tick();
+    const timerId = setInterval(tick, 1000);
   }
 
   function mountQuickAction(shell, user){

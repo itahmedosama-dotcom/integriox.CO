@@ -111,6 +111,8 @@ const I18N = (function(){
       link_copied: "تم نسخ الرابط",
       wa_send_error: "حصل خطأ غير متوقع أثناء تجهيز رسالة الواتساب",
       wa_popup_blocked_copied: "المتصفح منع فتح نافذة جديدة، فتم نسخ رابط واتساب — الصقه في تبويب جديد.",
+      session_time_left: "متبقٍ للجلسة:", session_expired: "انتهت صلاحية الجلسة، الرجاء تسجيل الدخول مرة أخرى.",
+      user_session_minutes: "مدة الجلسة (بالدقائق)", user_session_minutes_hint: "المدة اللي المستخدم بيفضل مسجّل دخوله فيها قبل ما يُطلب منه الدخول تاني. الافتراضي 60 دقيقة.",
       // payments
       payments: "المدفوعات", payments_sub: "تسجيل ومتابعة المدفوعات", add_payment: "تسجيل دفعة",
       payment_amount: "المبلغ", payment_method: "طريقة الدفع", method_bank: "تحويل بنكي",
@@ -408,6 +410,8 @@ const I18N = (function(){
       link_copied: "Link copied",
       wa_send_error: "Something unexpected went wrong preparing the WhatsApp message",
       wa_popup_blocked_copied: "Your browser blocked the popup, so the WhatsApp link was copied instead — paste it in a new tab.",
+      session_time_left: "Session time left:", session_expired: "Your session has expired, please log in again.",
+      user_session_minutes: "Session Duration (minutes)", user_session_minutes_hint: "How long the user stays logged in before being asked to sign in again. Defaults to 60 minutes.",
       payments: "Payments", payments_sub: "Record and track payments", add_payment: "Record Payment",
       payment_amount: "Amount", payment_method: "Payment method", method_bank: "Bank transfer",
       method_cash: "Cash", method_other: "Other", payment_date: "Payment date",

@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191ae">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191af">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191ae"></script>
-<script src="assets/js/lists.js?v=202607191ae"></script>
-<script src="assets/js/config.js?v=202607191ae"></script>
-<script src="assets/js/db.js?v=202607191ae"></script>
-<script src="assets/js/billing.js?v=202607191ae"></script>
-<script src="assets/js/auth.js?v=202607191ae"></script>
-<script src="assets/js/ui.js?v=202607191ae"></script>
-<script src="assets/js/layout.js?v=202607191ae"></script>
+<script src="assets/js/i18n.js?v=202607191af"></script>
+<script src="assets/js/lists.js?v=202607191af"></script>
+<script src="assets/js/config.js?v=202607191af"></script>
+<script src="assets/js/db.js?v=202607191af"></script>
+<script src="assets/js/billing.js?v=202607191af"></script>
+<script src="assets/js/auth.js?v=202607191af"></script>
+<script src="assets/js/ui.js?v=202607191af"></script>
+<script src="assets/js/layout.js?v=202607191af"></script>
 <script>
 const ctx = LAYOUT.render('settings');
 if(ctx){
@@ -747,6 +747,11 @@ if(ctx){
             <input type="date" id="fSuspendAt" value="${editing?(u.suspendAt||''):''}">
             <p class="hint" data-i18n="suspend_at_hint" style="margin-top:4px;"></p>
           </div>
+          <div class="field">
+            <label data-i18n="user_session_minutes"></label>
+            <input type="number" id="fSessionMinutes" min="5" value="${editing?(u.sessionMinutes||60):60}">
+            <p class="hint" data-i18n="user_session_minutes_hint" style="margin-top:4px;"></p>
+          </div>
         </div>
         <div class="modal-foot">
           <button type="button" class="btn btn-outline" id="mCancel" data-i18n="cancel"></button>
@@ -768,6 +773,7 @@ if(ctx){
         const role = overlay.querySelector('#fRole').value;
         const status = overlay.querySelector('#fStatus').value;
         const suspendAt = overlay.querySelector('#fSuspendAt').value || null;
+        const sessionMinutes = Number(overlay.querySelector('#fSessionMinutes').value) || 60;
         const canViewAllVisits = role==='technician' ? overlay.querySelector('#fCanViewAll').checked : false;
         if(!name || (!editing && !email)){ UI.toast(I18N.t('err_required'), 'error'); return; }
         if(username && DB.all('users').some(x=>x.id!==(u&&u.id) && (x.username||'').toLowerCase()===username.toLowerCase())){
@@ -775,7 +781,7 @@ if(ctx){
         }
 
         if(editing){
-          const patch = { name, phone, username, role, status, suspendAt, canViewAllVisits };
+          const patch = { name, phone, username, role, status, suspendAt, sessionMinutes, canViewAllVisits };
           if(password) patch.password = password;
           if(password) patch.passwordResetRequested = false;
           DB.update('users', u.id, patch);
@@ -784,7 +790,7 @@ if(ctx){
           if(DB.all('users').some(x=>x.email.toLowerCase()===email.toLowerCase())){
             UI.toast(I18N.t('err_login'), 'error'); return;
           }
-          DB.insert('users', { id: DB.uid('u'), name, email, username, phone, password: password||'123456', role, status, suspendAt, canViewAllVisits });
+          DB.insert('users', { id: DB.uid('u'), name, email, username, phone, password: password||'123456', role, status, suspendAt, sessionMinutes, canViewAllVisits });
           DB.logActivity('تمت إضافة مستخدم جديد ' + name, 'New user added: ' + name, 'user');
         }
         UI.closeModal(); UI.toast(I18N.t('saved_ok'), 'success'); render();
