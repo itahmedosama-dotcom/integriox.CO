@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191s">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191t">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191s"></script>
-<script src="assets/js/lists.js?v=202607191s"></script>
-<script src="assets/js/config.js?v=202607191s"></script>
-<script src="assets/js/db.js?v=202607191s"></script>
-<script src="assets/js/billing.js?v=202607191s"></script>
-<script src="assets/js/auth.js?v=202607191s"></script>
-<script src="assets/js/ui.js?v=202607191s"></script>
-<script src="assets/js/layout.js?v=202607191s"></script>
+<script src="assets/js/i18n.js?v=202607191t"></script>
+<script src="assets/js/lists.js?v=202607191t"></script>
+<script src="assets/js/config.js?v=202607191t"></script>
+<script src="assets/js/db.js?v=202607191t"></script>
+<script src="assets/js/billing.js?v=202607191t"></script>
+<script src="assets/js/auth.js?v=202607191t"></script>
+<script src="assets/js/ui.js?v=202607191t"></script>
+<script src="assets/js/layout.js?v=202607191t"></script>
 <script>
 const ctx = LAYOUT.render('visits');
 if(ctx){
@@ -80,7 +80,7 @@ if(ctx){
         </div>
         <div id="emptyState" class="empty-state hidden"><div data-i18n="no_data"></div></div>
       </div>
-      <div id="bulkPrintArea" class="print-only" style="display:none;"></div>
+      <div id="bulkPrintArea" class="print-only"></div>
     `;
     I18N.apply(contentEl);
     const rowsEl = contentEl.querySelector('#rows');
@@ -103,12 +103,12 @@ if(ctx){
           <td><span class="badge ${statusBadge[v.status]}" data-i18n="visit_${v.status}"></span></td>
           <td class="text-muted" style="max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${v.description||'—'}</td>
           <td class="row-actions">
-            <button type="button" class="btn btn-sm btn-outline" data-view="${v.id}" data-i18n="details"></button>
+            <button type="button" class="btn btn-sm btn-outline" data-view="${v.id}" title="${I18N.t('details')}">👁️</button>
             <button type="button" class="btn btn-sm btn-outline no-print" data-print="${v.id}" title="${I18N.t('print_selected')}">🖨️</button>
-            ${isAdmin && !tech ? `<button type="button" class="btn btn-sm btn-accent" data-assign="${v.id}" data-i18n="assign_tech"></button>` : ''}
-            ${(isAdmin||isTech) && v.status!=='done' && v.status!=='cancelled' ? `<button type="button" class="btn btn-sm btn-outline" data-complete="${v.id}" data-i18n="visit_done"></button>` : ''}
-            ${isAdmin ? `<button type="button" class="btn btn-sm btn-outline" data-edit="${v.id}" data-i18n="edit"></button>` : ''}
-            ${isAdmin ? `<button type="button" class="btn btn-sm btn-danger" data-del="${v.id}" data-i18n="delete"></button>` : ''}
+            ${isAdmin && !tech ? `<button type="button" class="btn btn-sm btn-accent" data-assign="${v.id}" title="${I18N.t('assign_tech')}">🔧</button>` : ''}
+            ${(isAdmin||isTech) && v.status!=='done' && v.status!=='cancelled' ? `<button type="button" class="btn btn-sm btn-outline" data-complete="${v.id}" title="${I18N.t('visit_done')}">✅</button>` : ''}
+            ${isAdmin ? `<button type="button" class="btn btn-sm btn-outline" data-edit="${v.id}" title="${I18N.t('edit')}">✏️</button>` : ''}
+            ${isAdmin ? `<button type="button" class="btn btn-sm btn-danger" data-del="${v.id}" title="${I18N.t('delete')}">🗑️</button>` : ''}
           </td>
         </tr>`;
       }).join('');
