@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191u">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191w">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191u"></script>
-<script src="assets/js/lists.js?v=202607191u"></script>
-<script src="assets/js/config.js?v=202607191u"></script>
-<script src="assets/js/db.js?v=202607191u"></script>
-<script src="assets/js/billing.js?v=202607191u"></script>
-<script src="assets/js/auth.js?v=202607191u"></script>
-<script src="assets/js/ui.js?v=202607191u"></script>
-<script src="assets/js/layout.js?v=202607191u"></script>
+<script src="assets/js/i18n.js?v=202607191w"></script>
+<script src="assets/js/lists.js?v=202607191w"></script>
+<script src="assets/js/config.js?v=202607191w"></script>
+<script src="assets/js/db.js?v=202607191w"></script>
+<script src="assets/js/billing.js?v=202607191w"></script>
+<script src="assets/js/auth.js?v=202607191w"></script>
+<script src="assets/js/ui.js?v=202607191w"></script>
+<script src="assets/js/layout.js?v=202607191w"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -180,12 +180,30 @@ if(ctx){
           </td>
           <td class="row-actions">
             <a class="btn btn-sm btn-outline" href="contract-template.html?id=${c.id}" title="${I18N.t('view_contract')}">👁️</a>
+            ${isAdmin ? (()=>{
+              const cl = clients.find(x=>x.id===c.clientId);
+              if(!cl || !cl.phone) return '';
+              return `<button type="button" class="btn btn-sm btn-outline" data-wa-contract="${c.id}" title="WhatsApp">💬</button>`;
+            })() : ''}
             ${isAdmin?`<button type="button" class="btn btn-sm btn-outline" data-edit="${c.id}" title="${I18N.t('edit')}">✏️</button>`:''}
             ${isAdmin?`<button type="button" class="btn btn-sm btn-danger" data-del="${c.id}" title="${I18N.t('delete')}">🗑️</button>`:''}
           </td>
         </tr>`;
       }).join('');
       I18N.apply(rowsEl);
+      rowsEl.querySelectorAll('[data-wa-contract]').forEach(b=>b.addEventListener('click', ()=>{
+        const c = contracts.find(x=>x.id===b.dataset.waContract);
+        const cl = clients.find(x=>x.id===c.clientId);
+        if(!c || !cl || !cl.phone) return;
+        const phone = cl.phone.replace(/^0/, '966').replace(/\D/g,'');
+        const token = DB.ensurePublicToken('contracts', c.id, 'signToken');
+        const link = window.location.origin + window.location.pathname.replace('contracts.html','') + 'contract-sign.html?id=' + c.id + '&token=' + token;
+        const idSafe = UI.ltrToken(c.id);
+        const text = encodeURIComponent(I18N.getLang()==='ar'
+          ? `\u200Fمرحبًا ${cl.name} | مرفق رابط عقد الصيانة رقم ${idSafe} للاطلاع والتوقيع الإلكتروني | ${link}`
+          : `Hello ${cl.name} | Here is the link to maintenance contract ${c.id} for review and e-signature | ${link}`);
+        window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+      }));
       rowsEl.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openForm(clients, contracts.find(c=>c.id===b.dataset.edit))));
       rowsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
         UI.confirmAction(I18N.t('confirm_delete'), ()=>{

@@ -29,6 +29,28 @@ const DB = (function(){
   }
   function todayISO(){ return new Date().toISOString().slice(0,10); }
 
+  // Random, hard-to-guess token for public share links (contract e-sign,
+  // visit view) that work without logging in. NOTE: this only gates which
+  // *page* shows without a login prompt — the underlying data (loaded
+  // from localStorage/Sheet) isn't server-side filtered by this token, so
+  // it's a UX/obscurity control, not real per-record access security. Be
+  // careful sharing these links, and don't rely on them for sensitive data.
+  function randomToken(){
+    return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  // Returns the record's existing public token, generating and saving one
+  // the first time it's needed.
+  function ensurePublicToken(col, id, tokenField){
+    const rec = get(col, id);
+    if(!rec) return null;
+    if(!rec[tokenField]){
+      const token = randomToken();
+      update(col, id, { [tokenField]: token });
+      return token;
+    }
+    return rec[tokenField];
+  }
+
   // Config shipped in assets/js/config.js — the site-wide default connection
   // every visitor gets out of the box, before any per-device override.
   function shippedConfig(){
@@ -409,7 +431,7 @@ const DB = (function(){
   return {
     uid, nextSeqId, todayISO, load, save, resetDemo,
     all, get, insert, update, remove,
-    getSettings, saveSettings, logActivity, markClientType,
+    getSettings, saveSettings, logActivity, markClientType, ensurePublicToken,
     encodeSecret, decodeSecret, syncFull, syncNow, pullFromSheet, clearAllData, shippedConfig,
     setMode:(m)=>MODE=m, getMode:()=>MODE,
   };
