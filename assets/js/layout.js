@@ -121,7 +121,21 @@ const LAYOUT = (function(){
     UI.mountFooter(shell.querySelector('.main'));
     UI.mountWhatsapp();
     document.addEventListener('lang-changed', ()=>{ UI.mountFooter(shell.querySelector('.main')); UI.mountWhatsapp(); });
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+      if(!navigator.serviceWorker.__integriox_reload_wired){
+        navigator.serviceWorker.__integriox_reload_wired = true;
+        navigator.serviceWorker.addEventListener('message', (e)=>{
+          if(e.data && e.data.type === 'SW_UPDATED'){
+            const seen = sessionStorage.getItem('integriox_sw_build');
+            if(seen !== e.data.build){
+              sessionStorage.setItem('integriox_sw_build', e.data.build);
+              window.location.reload();
+            }
+          }
+        });
+      }
+    }
     shell.querySelector('#userChipBtn').addEventListener('click', ()=> openProfileModal(user));
     mountNotifications(shell, user);
     mountQuickAction(shell, user);
