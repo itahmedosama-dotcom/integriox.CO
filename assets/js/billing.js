@@ -63,9 +63,10 @@ const BILLING = (function(){
       if(!isDue) return;
       if(c.lastAutoInvoiceMonth === periodKey) return;
 
-      const months = Number(c.durationMonths || 12) || 12;
-      const perMonth = Number(c.amount||0) / months;
-      const amount = Math.round(perMonth * (cycle==='yearly' ? 12 : 1) * 100) / 100;
+      // The entered amount IS the per-cycle charge already (monthly, or
+      // yearly if the billing cycle is yearly) — no longer divided by the
+      // contract's total duration.
+      const amount = Math.round(Number(c.amount||0) * 100) / 100;
       if(amount <= 0) return;
 
       const payment = {

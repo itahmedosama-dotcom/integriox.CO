@@ -12,19 +12,19 @@
 <meta name="theme-color" content="#0B2545">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=202607191al">
+<link rel="stylesheet" href="assets/css/style.css?v=202607191am">
 </head>
 <body>
 <div id="app-shell"></div>
 
-<script src="assets/js/i18n.js?v=202607191al"></script>
-<script src="assets/js/lists.js?v=202607191al"></script>
-<script src="assets/js/config.js?v=202607191al"></script>
-<script src="assets/js/db.js?v=202607191al"></script>
-<script src="assets/js/billing.js?v=202607191al"></script>
-<script src="assets/js/auth.js?v=202607191al"></script>
-<script src="assets/js/ui.js?v=202607191al"></script>
-<script src="assets/js/layout.js?v=202607191al"></script>
+<script src="assets/js/i18n.js?v=202607191am"></script>
+<script src="assets/js/lists.js?v=202607191am"></script>
+<script src="assets/js/config.js?v=202607191am"></script>
+<script src="assets/js/db.js?v=202607191am"></script>
+<script src="assets/js/billing.js?v=202607191am"></script>
+<script src="assets/js/auth.js?v=202607191am"></script>
+<script src="assets/js/ui.js?v=202607191am"></script>
+<script src="assets/js/layout.js?v=202607191am"></script>
 <script>
 const ctx = LAYOUT.render('contracts');
 if(ctx){
@@ -169,7 +169,7 @@ if(ctx){
           <td class="text-muted">${idx+1}</td>
           <td><strong>${c.id}</strong></td>
           <td>${client?client.name:'—'}</td>
-          <td>${UI.fmtMoney(c.amount, c.currency)}</td>
+          <td>${UI.fmtMoney(c.amount, c.currency)}${c.paymentTerms==='deferred' ? ` / ${c.billingCycle==='yearly' ? I18N.t('billing_yearly_suffix') : I18N.t('billing_monthly_suffix')}` : ''}</td>
           <td><span data-i18n="${typeLabel[c.contractType]}"></span></td>
           <td>${c.durationMonths} <span data-i18n="months"></span> · <span data-i18n="${c.periodType==='open'?'period_open':'period_fixed'}"></span></td>
           <td>${UI.fmtDate(c.startDate)}</td>
@@ -237,7 +237,11 @@ if(ctx){
           <p class="hint" data-i18n="contract_client_filter_hint" style="margin-top:4px;"></p>
         </div>
         <div class="field-row">
-          <div class="field"><label data-i18n="contract_amount"></label><input type="number" id="fAmount" min="0" value="${editing?contract.amount:''}"></div>
+          <div class="field">
+            <label data-i18n="contract_amount"></label>
+            <input type="number" id="fAmount" min="0" value="${editing?contract.amount:''}">
+            <p class="hint" id="amountHint" style="margin-top:4px;" data-i18n="${(!editing || contract.paymentTerms==='deferred') ? 'contract_amount_hint_deferred' : 'contract_amount_hint_upfront'}"></p>
+          </div>
           <div class="field">
             <label data-i18n="contract_currency"></label>
             <div style="display:flex; gap:8px;">
@@ -432,6 +436,9 @@ if(ctx){
         if(input.name === 'fPay'){
           dueDayWrap.classList.toggle('hidden', input.value !== 'deferred');
           upfrontDueWrap.classList.toggle('hidden', input.value !== 'upfront');
+          const amountHint = overlay.querySelector('#amountHint');
+          amountHint.setAttribute('data-i18n', input.value === 'deferred' ? 'contract_amount_hint_deferred' : 'contract_amount_hint_upfront');
+          I18N.apply(amountHint.parentElement);
         }
         if(input.name === 'fPeriod'){
           overlay.querySelector('#renewalNoticeWrap').style.display = input.value === 'open' ? 'none' : '';
@@ -493,10 +500,11 @@ if(ctx){
           DB.insert('payments', payment);
           DB.logActivity('تم إنشاء دفعة بانتظار التأكيد للعقد ' + data.id, 'Pending payment created for contract ' + data.id, 'payment');
         } else if(data.paymentTerms === 'deferred' && data.amount > 0){
-          const months = Number(data.durationMonths || 12) || 12;
-          const perMonth = Number(data.amount||0) / months;
           const cycle = data.billingCycle === 'yearly' ? 'yearly' : 'monthly';
-          const firstAmount = Math.round(perMonth * (cycle==='yearly' ? 12 : 1) * 100) / 100;
+          // The entered amount IS the per-cycle charge already (monthly,
+          // or yearly if the billing cycle is yearly) — no longer divided
+          // by the contract's total duration.
+          const firstAmount = Math.round(Number(data.amount||0) * 100) / 100;
           const periodKey = cycle==='yearly' ? String(new Date().getFullYear()) : DB.todayISO().slice(0,7);
           if(firstAmount > 0){
             const payment = {
