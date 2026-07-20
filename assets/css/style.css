@@ -260,12 +260,13 @@ html[dir="rtl"] .main{ margin-right:var(--sidebar-w); }
   .main{ margin-inline-start:0 !important; }
   .menu-toggle{ display:flex; }
   .page{ padding:16px; }
-  .topbar{ padding:0 14px; }
+  .topbar{ height:auto; min-height:var(--topbar-h); flex-wrap:wrap; padding:10px 14px; overflow-x:visible; }
+  .topbar > div:first-child{ flex-shrink:0; }
+  .topbar-right{ flex-wrap:wrap; flex-shrink:1; row-gap:8px; }
   .sidebar-backdrop{ display:none; position:fixed; inset:0; background:rgba(11,37,69,.45); z-index:249; }
   .sidebar-backdrop.open{ display:block; }
 }
 @media (max-width:520px){
-  .topbar{ padding:0 10px; gap:6px; }
   .topbar h1{ font-size:15px; }
   .icon-btn{ width:34px; height:34px; }
   .quick-action-btn{ padding:8px 10px; font-size:12px; }
